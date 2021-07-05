@@ -1,10 +1,11 @@
 const path = require("path");
 const webpack = require("webpack");
+const Dotenv = require('dotenv-webpack');
 
 let browserConfig = {
   entry: {
     main: {
-      import: "./src/index.js",
+      import: "./src/client.js",
       library: {
         name: "WebrtcConn",
         type: "commonjs",
@@ -44,6 +45,7 @@ let browserConfig = {
     new webpack.ProvidePlugin({
       process: "process/browser",
     }),
+    new Dotenv(),
   ],
   resolve: {
     fallback: {

@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "webpack --config webpack.dev.cjs --watch",
     "start": "webpack --config webpack.dev.cjs --stats-children",
-    "build": "webpack --config webpack.prod.cjs"
+    "build": "webpack --config webpack.prod.cjs",
+    "test": "jest"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.5",
@@ -13,6 +14,8 @@
     "@babel/preset-env": "^7.14.7",
     "@babel/runtime": "^7.14.6",
     "babel-loader": "^8.2.2",
+    "dotenv-webpack": "^7.0.3",
+    "jest": "^27.0.6",
     "node-loader": "^2.0.0",
     "process": "^0.11.10",
     "webpack": "^5.40.0",
@@ -29,5 +32,9 @@
     "uuid": "^8.3.2",
     "wrtc": "^0.4.7"
   },
-  "type": "module"
+  "type": "module",
+  "browser": {
+    "./src/dotenv.node.js": false,
+    "./src/wrtc.node.js": false
+  }
 }

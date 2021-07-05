@@ -1,6 +1,6 @@
 "use strict";
 
-import { DialWebrtcConn } from "./index.js";
+import { DialWebrtcConn } from "./client.js";
 
 {
   const peerId = "foobar89";
