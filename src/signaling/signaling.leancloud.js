@@ -1,25 +1,19 @@
-import { assert } from "./assert.js";
+import { assert } from "../assert.js";
 import leancloud from "./leancloud.js";
+import BasicSignaling from "./signaling.js";
 
-const MAX_PROBE_N = 10;
+const MAX_PROBE_N = 15;
 
 const DEFAULT_SERVER_PEER_ID = "foobar89";
 
-class SignalingService {
+class LeancloudSignaling extends BasicSignaling {
   constructor(myId, peerId = DEFAULT_SERVER_PEER_ID, leancloud_config = null) {
+    super();
     this.myId = myId;
     this.peerId = peerId;
 
     this.leancloud_config = leancloud_config;
 
-    this.ICE_SERVERS = [
-      {
-        credential: "bshu1211",
-        urls: "turn:stun.ppzhilian.com",
-        username: "bshu",
-      },
-      // { urls: "stun:global.stun.twilio.com:3478?transport=udp" },
-    ];
     this.FAST_PROBE_INTERVAL = 1;
     this.SLOW_PROBE_INTERVAL = 5;
   }
@@ -80,4 +74,4 @@ class SignalingService {
   }
 }
 
-export default SignalingService;
+export default LeancloudSignaling;

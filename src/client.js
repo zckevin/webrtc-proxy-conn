@@ -6,22 +6,20 @@ import { v4 as uuid } from "uuid";
 import { assert } from "./assert.js";
 import { str2ab } from "./protocol.js";
 import { CreateSimplePeer } from "./webrtc.js";
-import SignalingService from "./signaling.js";
+import AblySignaling from "./signaling/signaling.ably.js";
+import LeancloudSignaling from "./signaling/signaling.leancloud.js";
 
 // @addr host:port
-// @myId string id
-// @peerId string id
-function DialWebrtcConn(addr, signaling = null) {
+// @signaling
+function DialWebrtcConn(addr, signaling) {
   assert(addr.length > 0, "invalid addr for Dial()");
 
-  if (!signaling) {
-    // every conn has its unique random id
-    const myId = uuid();
-    signaling = new SignalingService(myId);
-  }
+  // every conn has its unique random id
+  const myId = uuid();
+  signaling = signaling || new AblySignaling(myId);
   const headerAb = str2ab(addr);
 
-  let peer = CreateSimplePeer(true, signaling)
+  let peer = CreateSimplePeer(true, signaling);
 
   signaling.WaitForSdps(
     (sdps) => {
@@ -43,7 +41,7 @@ function DialWebrtcConn(addr, signaling = null) {
   });
 
   peer.once("connect", () => {
-    console.log("webrtc connnected");
+    console.log("webrtc connnected, dial tcp conn:", addr);
     peer.send(headerAb);
   });
 

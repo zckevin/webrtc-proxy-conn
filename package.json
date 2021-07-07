@@ -24,6 +24,7 @@
     "webpack-merge": "^5.8.0"
   },
   "dependencies": {
+    "ably": "^1.2.10",
     "moment": "^2.29.1",
     "node-fetch": "^2.6.1",
     "pump": "^3.0.0",

@@ -12,7 +12,7 @@ let browserConfig = {
       },
     },
     web: {
-      import: "./src/web.js",
+      import: "./tests/web.js",
       library: {
         name: "WebrtcConn",
         type: "umd",

@@ -3,8 +3,8 @@
 import moment from "moment";
 import node_fetch from "node-fetch";
 
-import { assert } from "./assert.js";
-import "./dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
+import { assert } from "../assert.js";
+import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const IS_BROWSER_ENV = !(
   typeof globalThis.process !== "undefined" &&

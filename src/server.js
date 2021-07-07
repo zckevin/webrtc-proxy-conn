@@ -3,11 +3,12 @@
 import net from "net";
 import pump from "pump";
 
-import leancloud from "../src/leancloud.js";
-import { assert, assertNotReached } from "../src/assert.js";
-import { ab2str } from "../src/protocol.js";
+import { assert, assertNotReached } from "./assert.js";
+import { ab2str } from "./protocol.js";
 import { CreateSimplePeer } from "./webrtc.js";
-import SignalingService from "../src/signaling.js";
+import leancloud from "./signaling/leancloud.js";
+import LeancloudSignaling from "./signaling/signaling.leancloud.js";
+import AblySignaling from "./signaling/signaling.ably.js";
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
 const DEFAULT_SERVER_PEER_ID = "foobar89";
@@ -137,7 +138,7 @@ async function querySdp(config, left_recursive_rounds = Infinity, left_active_ro
 }
 */
 
-async function RunLoop() {
+async function RunLoopLeancloud() {
   const { appIds, appKeys, endpoints } = leancloud.GetEnv();
   for (let index = 0; index < appIds.length; index++) {
     const config = {
@@ -146,7 +147,7 @@ async function RunLoop() {
       API_ENDPOINT: endpoints[index],
     };
     // querySdp(config);
-    const signaling = new SignalingService(
+    const signaling = new LeancloudSignaling(
       DEFAULT_SERVER_PEER_ID,
       null,
       config
@@ -160,4 +161,17 @@ async function RunLoop() {
   }
 }
 
-export { createPeer, RunLoop };
+function RunLoopAbly() {
+  const signaling = new AblySignaling(
+    DEFAULT_SERVER_PEER_ID,
+    null, // peerId
+    false, // isClient
+  );
+  signaling.WaitForSdpsForever((sdps) => {
+    sdps.map((sdp) => {
+      createPeer(sdp.fromId, sdp.object, signaling);
+    });
+  });
+}
+
+export { createPeer, RunLoopAbly, RunLoopLeancloud };
