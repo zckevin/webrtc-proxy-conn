@@ -3,6 +3,7 @@
 import * as Ably from "ably";
 import { assert, assertNotReached } from "../assert.js";
 import BasicSignaling from "./signaling.js";
+import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const ABLY_CHANNEL_NAME = "sdps";
 const DEFAULT_SERVER_PEER_ID = "foobar89";
@@ -29,8 +30,9 @@ class AblySignaling extends BasicSignaling {
     if (use_cached_client && CACHED_ABLY_CLIENT) {
       this.client = CACHED_ABLY_CLIENT;
     } else {
+      assert(process.env.ABLY_APP_KEY, "process.env.ABLY_APP_KEY not set");
       this.client = new Ably.default.Realtime({
-        key: "D2xX-g.9jSyoQ:8k0cp8iYpp6hi7L9",
+        key: process.env.ABLY_APP_KEY,
         clientId: isClient ? "dummyClient" : "proxyServer",
         log: { level: debug_log ? 4 : 1 },
       });

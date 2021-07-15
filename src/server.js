@@ -89,55 +89,6 @@ function createPeer(peerId, sdp, signaling) {
   return p;
 }
 
-/*
-function getRandomIntInclusive(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
-}
-
-let g_should_stop_now = false;
-function set_should_stop_now() {
-  g_should_stop_now = true;
-}
-
-async function querySdp(config, left_recursive_rounds = Infinity, left_active_rounds = 0) {
-  let interval_seconds = 5;
-  if (left_active_rounds > 0) {
-    interval_seconds = 1;
-  }
-  if (g_should_stop_now || left_recursive_rounds === 0) {
-    return;
-  }
-  // using try...catch to avoid server crash
-  try {
-    let offers = await leancloud.GetObjects(null, myId, true, config);
-    if (offers.length > 0) {
-      left_active_rounds = 10;
-    }
-    let seen = new Set();
-    offers.map((offer) => {
-      const fromId = offer.fromId;
-      if (seen.has(fromId)) {
-        return;
-      }
-      seen.add(fromId);
-
-      const sdp = offer.sdp;
-      createPeer(fromId, sdp, config);
-    });
-  } catch (err) {
-    console.error(err);
-  }
-
-  setTimeout(() => {
-    queryOffer(config, left_recursive_rounds - 1, left_active_rounds - 1);
-  }, ((interval_seconds * getRandomIntInclusive(7, 11)) / 10) * 1000);
-
-  return set_should_stop_now;
-}
-*/
-
 async function RunLoopLeancloud() {
   const { appIds, appKeys, endpoints } = leancloud.GetEnv();
   for (let index = 0; index < appIds.length; index++) {
