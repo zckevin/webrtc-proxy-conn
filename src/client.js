@@ -7,7 +7,9 @@ import { assert } from "./assert.js";
 import { str2ab } from "./protocol.js";
 import { CreateSimplePeer } from "./webrtc.js";
 import AblySignaling from "./signaling/signaling.ably.js";
-import LeancloudSignaling from "./signaling/signaling.leancloud.js";
+
+// LeanCloud signaling is disabled by default
+// import LeancloudSignaling from "./signaling/signaling.leancloud.js";
 
 // @addr host:port
 // @signaling
