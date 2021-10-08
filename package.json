@@ -1,9 +1,11 @@
 {
   "name": "webrtc-proxy-conn",
   "version": "0.0.1",
+  "main": "dist/main.cjs",
   "author": "zckevinzc@gmail.com",
   "homepage": "https://github.com/zckevin/webrtc-proxy-conn",
   "scripts": {
+    "prepublish": "webpack --config webpack.dev.cjs --stats-children",
     "dev": "webpack --config webpack.dev.cjs --watch",
     "start": "webpack --config webpack.dev.cjs --stats-children",
     "build": "webpack --config webpack.prod.cjs",
