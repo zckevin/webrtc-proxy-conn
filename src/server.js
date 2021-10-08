@@ -106,7 +106,7 @@ async function RunLoopLeancloud() {
     signaling.probe_interval_seconds = 3;
     signaling.WaitForSdpsForever((sdps) => {
       sdps.map((sdp) => {
-        createPeer(sdp.fromId, sdp.object, signaling);
+        createPeer(sdp.fromId, sdp.sdp, signaling);
       });
     });
   }
@@ -116,7 +116,7 @@ function RunLoopAbly() {
   const signaling = new AblySignaling(
     DEFAULT_SERVER_PEER_ID,
     null, // peerId
-    false, // isClient
+    false // isClient
   );
   signaling.WaitForSdpsForever((sdps) => {
     // in case any fatal errors...

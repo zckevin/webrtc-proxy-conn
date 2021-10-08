@@ -25,11 +25,9 @@ function DialWebrtcConn(addr, signaling) {
 
   signaling.WaitForSdps(
     (sdps) => {
-      assert(
-        sdps.length === 1,
-        "Client receives more than one sdp from server"
-      );
-      peer.signal(sdps[0].object);
+      sdps.map((sdp) => {
+        peer.signal(sdp.sdp);
+      });
     },
     (err) => {
       console.error(err);
@@ -37,9 +35,9 @@ function DialWebrtcConn(addr, signaling) {
     }
   );
 
-  peer.once("signal", (data) => {
-    console.log("SIGNAL", JSON.stringify(data));
-    signaling.SendSdp(data);
+  peer.once("signal", (sdp) => {
+    console.log("SIGNAL", JSON.stringify(sdp));
+    signaling.SendSdp(sdp);
   });
 
   peer.once("connect", () => {

@@ -8,6 +8,8 @@ import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-web
 const ABLY_CHANNEL_NAME = "sdps";
 const DEFAULT_SERVER_PEER_ID = "foobar89";
 
+const ALBY_FREE_USER_MSG_THROTTLE_TIME = 800; // 800ms
+
 let CACHED_ABLY_CLIENT = null;
 
 class AblySignaling extends BasicSignaling {
@@ -40,29 +42,65 @@ class AblySignaling extends BasicSignaling {
     }
     this.channel = this.client.channels.get(ABLY_CHANNEL_NAME);
     this.channel.attach();
+
+    this.lastSendTime = 0;
+    this.pendingSdps = [];
+    this.publishPendingSdpsTimeoutId = 0;
   }
 
   getSendMsgName(peerId) {
     return `sdps:${this.isClient ? "offer" : "answer"}:${peerId}`;
   }
 
-  SendSdp(data, peerId) {
+  publishPendingSdps(peerId) {
+    peerId = peerId || this.peerId;
+
+    if (this.pendingSdps.length <= 0) {
+      return Promise.resolve();
+    }
+    if (this.publishPendingSdpsTimeoutId) {
+      clearTimeout(this.publishPendingSdpsTimeoutId);
+    }
+    return new Promise((resolve, reject) => {
+      this.channel.publish(
+        this.getSendMsgName(peerId),
+        [...this.pendingSdps], // using a shallow copy
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        }
+      );
+      this.pendingSdps = [];
+    });
+  }
+
+  SendSdp(sdp, peerId) {
     peerId = peerId || this.peerId;
     assert(peerId, "SendSdp no peerId supplied.");
-    const wrapper = {
-      object: data,
+
+    const obj = {
+      sdp,
       fromId: this.myId,
       toId: peerId,
     };
-    return new Promise((resolve, reject) => {
-      this.channel.publish(this.getSendMsgName(peerId), wrapper, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
+    this.pendingSdps.push(obj);
+
+    let result;
+    const now = Date.now();
+    if (now - this.lastSendTime < ALBY_FREE_USER_MSG_THROTTLE_TIME) {
+      this.publishPendingSdpsTimeoutId = setTimeout(
+        this.publishPendingSdps.bind(this, peerId),
+        ALBY_FREE_USER_MSG_THROTTLE_TIME
+      );
+      result = Promise.resolve();
+    } else {
+      result = this.publishPendingSdps(peerId);
+    }
+    this.lastSendTime = now;
+    return result;
   }
 
   WaitForSdps(resolve, reject, only_once = true) {
@@ -71,12 +109,12 @@ class AblySignaling extends BasicSignaling {
       if (this.isClient) {
         if (msg.name === `sdps:answer:${this.myId}`) {
           console.log("Ably client recv: ", msg);
-          resolve([msg.data]);
+          resolve(msg.data);
         }
       } else {
         if (msg.name.startsWith("sdps:offer:")) {
           console.log("Ably Server recv: ", msg);
-          resolve([msg.data]);
+          resolve(msg.data);
         }
       }
       if (only_once) {
