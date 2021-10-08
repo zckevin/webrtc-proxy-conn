@@ -1,7 +1,7 @@
 {
   "name": "webrtc-proxy-conn",
   "version": "0.0.1",
-  "main": "dist/main.cjs",
+  "main": "lib/main.cjs",
   "author": "zckevinzc@gmail.com",
   "homepage": "https://github.com/zckevin/webrtc-proxy-conn",
   "scripts": {
