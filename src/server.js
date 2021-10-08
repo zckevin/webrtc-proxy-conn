@@ -119,9 +119,14 @@ function RunLoopAbly() {
     false, // isClient
   );
   signaling.WaitForSdpsForever((sdps) => {
-    sdps.map((sdp) => {
-      createPeer(sdp.fromId, sdp.object, signaling);
-    });
+    // in case any fatal errors...
+    try {
+      sdps.map((sdp) => {
+        createPeer(sdp.fromId, sdp.object, signaling);
+      });
+    } catch (err) {
+      console.error(err);
+    }
   });
 }
 
