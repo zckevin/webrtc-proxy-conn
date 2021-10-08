@@ -1,6 +1,8 @@
 {
-  "name": "wasm-mse-player",
+  "name": "webrtc-proxy-conn",
   "version": "0.0.1",
+  "author": "zckevinzc@gmail.com",
+  "homepage": "https://github.com/zckevin/webrtc-proxy-conn",
   "scripts": {
     "dev": "webpack --config webpack.dev.cjs --watch",
     "start": "webpack --config webpack.dev.cjs --stats-children",
