@@ -1,6 +1,9 @@
 "use strict";
 
 import * as Ably from "ably";
+// const vcdiffDecoder = require("@ably/vcdiff-decoder");
+import * as vcdiffDecoder from "@ably/vcdiff-decoder";
+
 import { assert, assertNotReached } from "../assert.js";
 import BasicSignaling from "./signaling.js";
 import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
@@ -8,7 +11,16 @@ import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-web
 const ABLY_CHANNEL_NAME = "sdps";
 const DEFAULT_SERVER_PEER_ID = "foobar89";
 
-const ALBY_FREE_USER_MSG_THROTTLE_TIME = 800; // 800ms
+/*
+ * Ably free user limitation:
+ * https://faqs.ably.com/error-code-42910-rate-limit-exceeded-request-rejected
+ * https://faqs.ably.com/do-you-have-any-connection-message-rate-or-other-limits-on-accounts
+ *
+ * FREE user could only send no more than 15 msgs per second to a concurrent live channel,
+ * and max msg length is 16384 bytes(16KiB)
+ */
+const ALBY_FREE_USER_MSG_THROTTLE_TIME = 500; // 800ms
+const ALBY_FREE_USER_MSG_THROTTLE_LEN = 15000;
 
 let CACHED_ABLY_CLIENT = null;
 
@@ -37,10 +49,17 @@ class AblySignaling extends BasicSignaling {
         key: process.env.ABLY_APP_KEY,
         clientId: isClient ? "dummyClient" : "proxyServer",
         log: { level: debug_log ? 4 : 1 },
+        plugins: {
+          vcdiff: vcdiffDecoder,
+        },
       });
       if (use_cached_client) CACHED_ABLY_CLIENT = this.client;
     }
-    this.channel = this.client.channels.get(ABLY_CHANNEL_NAME);
+    this.channel = this.client.channels.get(ABLY_CHANNEL_NAME, {
+      params: {
+        delta: "vcdiff",
+      },
+    });
     this.channel.attach();
 
     this.lastSendTime = 0;
@@ -62,6 +81,10 @@ class AblySignaling extends BasicSignaling {
       clearTimeout(this.publishPendingSdpsTimeoutId);
     }
     return new Promise((resolve, reject) => {
+      const s = JSON.stringify(this.pendingSdps);
+      console.log("=============================================");
+      console.log("sdps total len: ", s.length);
+
       this.channel.publish(
         this.getSendMsgName(peerId),
         [...this.pendingSdps], // using a shallow copy
@@ -74,7 +97,14 @@ class AblySignaling extends BasicSignaling {
         }
       );
       this.pendingSdps = [];
+    }).catch((err) => {
+      console.log(err);
     });
+  }
+
+  pendingSdpsLengthExceedsLimit() {
+    const s = JSON.stringify(this.pendingSdps);
+    return s.length >= ALBY_FREE_USER_MSG_THROTTLE_LEN;
   }
 
   SendSdp(sdp, peerId) {
@@ -90,7 +120,10 @@ class AblySignaling extends BasicSignaling {
 
     let result;
     const now = Date.now();
-    if (now - this.lastSendTime < ALBY_FREE_USER_MSG_THROTTLE_TIME) {
+    if (
+      now - this.lastSendTime < ALBY_FREE_USER_MSG_THROTTLE_TIME &&
+      !this.pendingSdpsLengthExceedsLimit()
+    ) {
       this.publishPendingSdpsTimeoutId = setTimeout(
         this.publishPendingSdps.bind(this, peerId),
         ALBY_FREE_USER_MSG_THROTTLE_TIME
