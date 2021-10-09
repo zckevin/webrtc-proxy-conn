@@ -1,11 +1,10 @@
 {
   "name": "webrtc-proxy-conn",
   "version": "0.0.1",
-  "main": "lib/main.cjs",
+  "main": "dist/main.cjs",
   "author": "zckevinzc@gmail.com",
   "homepage": "https://github.com/zckevin/webrtc-proxy-conn",
   "scripts": {
-    "prepublish": "webpack --config webpack.dev.cjs --stats-children",
     "dev": "webpack --config webpack.dev.cjs --watch",
     "start": "webpack --config webpack.dev.cjs --stats-children",
     "build": "webpack --config webpack.prod.cjs",
@@ -28,6 +27,7 @@
     "webpack-merge": "^5.8.0"
   },
   "dependencies": {
+    "@ably/vcdiff-decoder": "^1.0.4",
     "ably": "^1.2.10",
     "moment": "^2.29.1",
     "node-fetch": "^2.6.1",

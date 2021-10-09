@@ -31,7 +31,7 @@ function createPeer(peerId, sdp, signaling) {
 
   p.on("error", (err) => console.error("Simple peer on error", err));
 
-  p.on("signal", async (data) => {
+  p.on("signal", (data) => {
     console.log("SIGNAL", JSON.stringify(data));
     signaling.SendSdp(data, peerId);
   });
@@ -53,7 +53,9 @@ function createPeer(peerId, sdp, signaling) {
     let [addrStr, leftAb] = ab2str(ab);
     if (!addrStr) {
       console.log(ab);
-      assertNotReached("peer on recv data header fragmentation");
+      // assertNotReached("peer on recv data header fragmentation");
+      console.log("peer on recv data header fragmentation");
+      return
     }
 
     // header is recved, then pump to conn
@@ -89,7 +91,7 @@ function createPeer(peerId, sdp, signaling) {
   return p;
 }
 
-async function RunLoopLeancloud() {
+function RunLoopLeancloud() {
   const { appIds, appKeys, endpoints } = leancloud.GetEnv();
   for (let index = 0; index < appIds.length; index++) {
     const config = {
@@ -122,7 +124,7 @@ function RunLoopAbly() {
     // in case any fatal errors...
     try {
       sdps.map((sdp) => {
-        createPeer(sdp.fromId, sdp.object, signaling);
+        createPeer(sdp.fromId, sdp.sdp, signaling);
       });
     } catch (err) {
       console.error(err);

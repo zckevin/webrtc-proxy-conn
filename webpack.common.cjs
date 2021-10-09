@@ -24,12 +24,12 @@ let browserConfig = {
   output: {
     // libraryTarget: "umd",
     // umdNamedDefine: true,
-    // path: path.resolve(__dirname, "lib"),
+    // path: path.resolve(__dirname, "dist"),
     // filename: "bundle.js",
   },
   */
   output: {
-    path: path.resolve(__dirname, "lib"),
+    path: path.resolve(__dirname, "dist"),
     filename: "[name].cjs",
   },
 
@@ -63,7 +63,7 @@ let nodeConfig = {
   entry: "./src/server.js",
   target: "node",
   output: {
-    path: path.resolve(__dirname, "lib"),
+    path: path.resolve(__dirname, "dist"),
     filename: "bundle.node.js",
   },
   module: {
