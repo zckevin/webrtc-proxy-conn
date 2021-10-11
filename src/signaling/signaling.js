@@ -108,6 +108,12 @@ class BasicSignaling {
 
     peer.on("close", () => {
       console.log("peer close");
+      delete this.localPeers[peerId];
+    });
+
+    peer.on("error", (err) => {
+      console.error("peer err:", err);
+      delete this.localPeers[peerId];
     });
 
     return peer;
