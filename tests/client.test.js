@@ -2,7 +2,6 @@ import { jest } from "@jest/globals";
 
 import { DialWebrtcConnForTesting } from "../src/client.js";
 import { MockSignaling } from "../src/signaling/signaling.js";
-import { BPMux } from "bpmux";
 import { relativeTimeThreshold } from "moment";
 import { assert } from "../src/assert.js";
 
@@ -11,6 +10,7 @@ import { hasUncaughtExceptionCaptureCallback } from "process";
 import { Server, TestingServer } from "../src/server.js";
 import { SingleEntryPlugin } from "webpack";
 import { sign } from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 // process.on("beforeExit", (code) => process.exit(code));
 
@@ -77,7 +77,14 @@ function createTestingSignaling(uid, dstUid, registry, isClient, config = {}) {
   return signaling;
 }
 
-function createTestingPeer(uid, dstUid, registry, isClient, config = {}) {
+function createTestingPeer(
+  peerId,
+  uid,
+  dstUid,
+  registry,
+  isClient,
+  config = {}
+) {
   const signaling = createTestingSignaling(
     uid,
     dstUid,
@@ -85,16 +92,49 @@ function createTestingPeer(uid, dstUid, registry, isClient, config = {}) {
     isClient,
     config
   );
-  const peer = signaling.CreatePeer("peer_id_for_testing", dstUid);
+  peerId = peerId || uuidv4();
+  const peer = signaling.CreatePeer(peerId, dstUid);
   return peer;
 }
 
 function CreateTestPairs(registry, config) {
   const srcUid = 2;
   const dstUid = 3;
-  const client = createTestingPeer(srcUid, dstUid, registry, true, config);
-  const server = createTestingPeer(dstUid, srcUid, registry, false, config);
+  const peerId = uuidv4();
+  const client = createTestingPeer(
+    peerId,
+    srcUid,
+    dstUid,
+    registry,
+    true,
+    config
+  );
+  const server = createTestingPeer(
+    peerId,
+    dstUid,
+    srcUid,
+    registry,
+    false,
+    config
+  );
   return [client, server];
+}
+
+function spawnLocalTcpServer(payload, cb) {
+  if (typeof payload === "function") {
+    payload = payload();
+  }
+  const tcpServer = net.createServer((sock) => {
+    sock.end(payload);
+  });
+
+  tcpServer.listen(0, "localhost", () => {
+    const addr = `localhost:${tcpServer.address().port}`;
+    console.log("TCP Server is running at", addr);
+    cb(addr);
+  });
+
+  return tcpServer;
 }
 
 test("simple peers", (done) => {
@@ -119,20 +159,6 @@ test("simple peers", (done) => {
   }, 1000);
 });
 
-function spawnLocalTcpServer(payload, cb) {
-  const tcpServer = net.createServer((sock) => {
-    sock.end(payload);
-  });
-
-  tcpServer.listen(0, "localhost", () => {
-    const addr = `localhost:${tcpServer.address().port}`;
-    console.log("TCP Server is running at", addr);
-    cb(addr);
-  });
-
-  return tcpServer;
-}
-
 test("simple client with testing server", (done) => {
   const registry = new Registry();
   const [client, server] = CreateTestPairs(registry);
@@ -153,15 +179,22 @@ test("simple client with testing server", (done) => {
   });
 });
 
-test("server accept webrtc peers", (done) => {
+test("server accept single webrtc peer", (done) => {
   const registry = new Registry();
 
   const clientUid = 2;
   const serverUid = 3;
 
-  const clientPeer = createTestingPeer(clientUid, serverUid, registry, true, {
-    useMultiplex: false,
-  });
+  const clientPeer = createTestingPeer(
+    null,
+    clientUid,
+    serverUid,
+    registry,
+    true,
+    {
+      useMultiplex: false,
+    }
+  );
 
   const serverSignaling = createTestingSignaling(
     serverUid,
@@ -175,12 +208,9 @@ test("server accept webrtc peers", (done) => {
   const payload = new Uint8Array([1, 2, 3]);
   const tcpServer = spawnLocalTcpServer(payload, (addr) => {
     const clientConn = clientPeer.DialWebrtcConn(addr);
-
     clientConn.on("data", (data) => {
       data = new Uint8Array(data);
       expect(data).toEqual(payload);
-
-      console.log(444, data)
       tcpServer.close();
       done();
     });
@@ -213,4 +243,109 @@ test("peers with multiplexing, single duplex", (done) => {
       done();
     });
   });
+});
+
+test("server accept multiple webrtc peers", (done) => {
+  const registry = new Registry();
+
+  const N = 10;
+  const clientUid = 2;
+  const serverUid = 100;
+  const clientPeers = [];
+
+  for (let i = 0; i < N; i++) {
+    clientPeers[i] = createTestingPeer(
+      null,
+      clientUid + i,
+      serverUid,
+      registry,
+      true,
+      {
+        useMultiplex: false,
+      }
+    );
+  }
+
+  const serverSignaling = createTestingSignaling(
+    serverUid,
+    null,
+    registry,
+    false,
+    { useMultiplex: false, serverPeerForTesting: false }
+  );
+  const server = new Server(serverSignaling);
+
+  const payload = new Uint8Array([1, 2, 3]);
+  let finished = 0;
+  const tcpServer = spawnLocalTcpServer(payload, (addr) => {
+    for (let i = 0; i < N; i++) {
+      const clientPeer = clientPeers[i];
+      const clientConn = clientPeer.DialWebrtcConn(addr);
+      clientConn.on("data", (data) => {
+        data = new Uint8Array(data);
+        expect(data).toEqual(payload);
+        finished++;
+        if (finished >= N) {
+          tcpServer.close();
+          done();
+        }
+      });
+    }
+  });
+
+  setTimeout(() => {
+    console.log(registry);
+  }, 1000);
+});
+
+test("server accept single peers, using multiplex", (done) => {
+  const registry = new Registry();
+
+  const clientUid = 2;
+  const serverUid = 100;
+
+  const useMultiplex = true;
+
+  const clientPeer = createTestingPeer(
+    null,
+    clientUid,
+    serverUid,
+    registry,
+    true,
+    {
+      useMultiplex,
+    }
+  );
+
+  const serverSignaling = createTestingSignaling(
+    serverUid,
+    null,
+    registry,
+    false,
+    { useMultiplex, serverPeerForTesting: false }
+  );
+  const server = new Server(serverSignaling);
+
+  const N = 10;
+  let finished = 0;
+  let clientConns = [];
+  const payload = new Uint8Array([1, 2, 3]);
+  const tcpServer = spawnLocalTcpServer(payload, (addr) => {
+    for (let i = 0; i < N; i++) {
+      clientConns[i] = clientPeer.DialWebrtcConn(addr);
+      clientConns[i].on("data", (data) => {
+        data = new Uint8Array(data);
+        expect(data).toEqual(payload);
+        finished++;
+        if (finished >= N) {
+          tcpServer.close();
+          done();
+        }
+      });
+    }
+  });
+
+  setTimeout(() => {
+    console.log(registry);
+  }, 1000);
 });
