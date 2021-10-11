@@ -5,7 +5,7 @@ import * as Ably from "ably";
 import * as vcdiffDecoder from "@ably/vcdiff-decoder";
 
 import { assert, assertNotReached } from "../assert.js";
-import BasicSignaling from "./signaling.js";
+import { BasicSignaling } from "./signaling.js";
 import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const ABLY_CHANNEL_NAME = "sdps";
@@ -136,7 +136,8 @@ class AblySignaling extends BasicSignaling {
     return result;
   }
 
-  WaitForSdps(resolve, reject, only_once = true) {
+  // OVERRIDE
+  OnReceiveSdps(resolve, reject, only_once = true) {
     this.channel.subscribe((msg) => {
       // resolve array instead of object because Leancloud signaling does this.
       if (this.isClient) {
@@ -150,14 +151,14 @@ class AblySignaling extends BasicSignaling {
           resolve(msg.data);
         }
       }
-      if (only_once) {
-        this.channel.unsubscribe(ABLY_CHANNEL_NAME);
-      }
+      // if (only_once) {
+      //   this.channel.unsubscribe(ABLY_CHANNEL_NAME);
+      // }
     });
   }
 
   WaitForSdpsForever(resolve) {
-    this.WaitForSdps(resolve, null, false);
+    this.OnReceiveSdps(resolve, null, false);
   }
 
   Close() {

@@ -5,10 +5,11 @@ import pump from "pump";
 
 import { assert, assertNotReached } from "./assert.js";
 import { ab2str } from "./protocol.js";
-import { CreateSimplePeer } from "./webrtc.js";
+import { MultiplexedPeer } from "./webrtc.js";
 import leancloud from "./signaling/leancloud.js";
-import LeancloudSignaling from "./signaling/signaling.leancloud.js";
+// import LeancloudSignaling from "./signaling/signaling.leancloud.js";
 import AblySignaling from "./signaling/signaling.ably.js";
+import { ProxyClient } from "./client.js";
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
 const DEFAULT_SERVER_PEER_ID = "foobar89";
@@ -26,71 +27,7 @@ function dialNetConn(addrStr, cb) {
   return conn;
 }
 
-function createPeer(peerId, sdp, signaling) {
-  const p = CreateSimplePeer(false, signaling);
-
-  p.on("error", (err) => console.error("Simple peer on error", err));
-
-  p.on("signal", (data) => {
-    console.log("SIGNAL", JSON.stringify(data));
-    signaling.SendSdp(data, peerId);
-  });
-
-  p.on("connect", () => {
-    console.log("connected");
-  });
-
-  let waitOnHeader = (data) => {
-    let ab;
-    if (data instanceof Uint8Array) {
-      ab = data.buffer;
-    } else if (data instanceof ArrayBuffer) {
-      ab = data;
-    } else {
-      assertNotReached("peer on recv data unexpected type");
-    }
-
-    let [addrStr, leftAb] = ab2str(ab);
-    if (!addrStr) {
-      console.log(ab);
-      // assertNotReached("peer on recv data header fragmentation");
-      console.log("peer on recv data header fragmentation");
-      return
-    }
-
-    // header is recved, then pump to conn
-    p.removeListener("data", waitOnHeader);
-
-    let conn = dialNetConn(addrStr, () => {
-      if (leftAb.byteLength > 0) {
-        console.log("leftAb", leftAb);
-        conn.write(new Uint8Array(leftAb));
-      }
-    });
-
-    // bi-directional pipe
-    pump(p, conn, (err) => {
-      console.error("pump err write", err);
-    });
-    pump(conn, p, (err) => {
-      console.error("pump err read", err);
-    });
-
-    conn.once("error", (err) => {
-      console.error("tcp conn error: ", err);
-    });
-
-    conn.on("close", () => {
-      console.log("conn close");
-      p.destroy();
-    });
-  };
-  p.on("data", waitOnHeader);
-  p.signal(sdp);
-
-  return p;
-}
-
+/*
 function RunLoopLeancloud() {
   const { appIds, appKeys, endpoints } = leancloud.GetEnv();
   for (let index = 0; index < appIds.length; index++) {
@@ -113,6 +50,7 @@ function RunLoopLeancloud() {
     });
   }
 }
+*/
 
 function RunLoopAbly() {
   const signaling = new AblySignaling(
@@ -120,6 +58,7 @@ function RunLoopAbly() {
     null, // peerId
     false // isClient
   );
+
   signaling.WaitForSdpsForever((sdps) => {
     // in case any fatal errors...
     try {
@@ -132,4 +71,53 @@ function RunLoopAbly() {
   });
 }
 
-export { createPeer, RunLoopAbly, RunLoopLeancloud };
+class Server {
+  constructor(signaling) {
+    this.signaling =
+      signaling ||
+      new AblySignaling(
+        DEFAULT_SERVER_PEER_ID,
+        null, // peerId
+        false // isClient
+      );
+    this.signaling.OnReceiveSdps(this.OnReceiveSdps.bind(this));
+  }
+
+  OnReceiveSdps(sdpObjects) {
+    console.log("2222222", sdpObjects);
+    sdpObjects.map((sdpObject) => {
+      const peerId = sdpObject.peerId;
+      if (!peerId) {
+        // error?
+        return;
+      }
+      let peer = this.signaling.localPeers[peerId];
+      if (!peer) {
+        console.log("111111111 server accept new peer", peerId);
+        peer = this.signaling.CreatePeer(peerId, sdpObject.srcUid);
+
+        if (this.onNewPeer) {
+          this.onNewPeer(peer);
+        }
+
+        peer.onNewWebrtcConn((duplex) => {
+          duplex.on("data", (data) => {
+            peer.onRecvHeader(duplex, data);
+          });
+        });
+      }
+      peer.signal(sdpObject.rawText());
+    });
+  }
+}
+
+class TestingServer {
+  constructor(peer, duplex) {
+    duplex.on("data", (data) => {
+      // console.log("2222", data)
+      peer.onRecvHeader(duplex, data);
+    });
+  }
+}
+
+export { RunLoopAbly, Server, TestingServer };

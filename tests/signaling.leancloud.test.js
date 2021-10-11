@@ -21,7 +21,7 @@ test("leancloud signaling single", (done) => {
       return client.SendSdp(sdp);
     })
     .then(() => {
-      server.WaitForSdps(
+      server.OnReceiveSdps(
         (sdps) => {
           expect(sdps.length).toEqual(1);
           expect(sdps[0].object).toEqual(sdp);

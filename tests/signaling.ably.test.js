@@ -30,7 +30,7 @@ test("ably signaling single", (done) => {
     use_cached_client
   );
 
-  client.WaitForSdps((sdps) => {
+  client.OnReceiveSdps((sdps) => {
     expect(sdps.length).toEqual(1);
     expect(sdps[0].sdp).toEqual(sdpAnswer);
 
@@ -43,7 +43,7 @@ test("ably signaling single", (done) => {
     }, 100);
   });
 
-  server.WaitForSdps((sdps) => {
+  server.OnReceiveSdps((sdps) => {
     expect(sdps.length).toEqual(1);
     expect(sdps[0].sdp).toEqual(sdpOffer);
 
@@ -97,7 +97,7 @@ test("ably signaling multiple clients", (done) => {
       }, 100);
     }
   };
-  clients.map(client => client.WaitForSdps(onClientResolve));
+  clients.map(client => client.OnReceiveSdps(onClientResolve));
 
   server.WaitForSdpsForever((sdps) => {
     expect(sdps[0].sdp).toEqual(sdpOffer);

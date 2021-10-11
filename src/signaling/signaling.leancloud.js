@@ -43,7 +43,7 @@ class LeancloudSignaling extends BasicSignaling {
     resolve(sdps);
   }
 
-  WaitForSdps(resolve, reject) {
+  OnReceiveSdps(resolve, reject) {
     let trial_n = 0;
     let interval = setInterval(() => {
       try {

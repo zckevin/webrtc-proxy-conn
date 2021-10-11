@@ -8,25 +8,26 @@ import net from "net";
 
 jest.setTimeout(10 * 1000);
 
-test("dummy server without leancloud signaling", (done) => {
+test("dummy server", (done) => {
   function run(targetAddr) {
     const signaling = new BasicSignaling();
-    const client = CreateSimplePeer(true, signaling);
+    // const client = CreateSimplePeer(true, signaling);
+    const client = new MultiplexedPeer(true, signaling)
     let server;
 
-    const mockSignaling = {
-      SendSdp: (sdp) => {
+    class MockSignaling extends BasicSignaling {
+      constructor() {
+        super();
+      }
+
+      SendSdp(sdp) {
         client.signal(sdp);
-      },
-      ICE_SERVERS: [
-        {
-          credential: "bshu1211",
-          urls: "turn:stun.ppzhilian.com",
-          username: "bshu",
-        },
-        // { urls: "stun:global.stun.twilio.com:3478?transport=udp" },
-      ],
-    };
+      }
+
+      OnReceiveSdps(resolveFunc) {
+      }
+    }
+    const mockSignaling = new MockSignaling()
 
     client.on("signal", (sdp) => {
       server = createPeer("peer_id_does_not_matter", sdp, mockSignaling);
@@ -52,10 +53,11 @@ test("dummy server without leancloud signaling", (done) => {
     });
   }
 
-  let addr = "";
+  let addr;
   const tcpServer = net.createServer((sock) => {
     sock.end(addr);
   });
+
   tcpServer.listen(0, "localhost", () => {
     addr = `localhost:${tcpServer.address().port}`;
     console.log("TCP Server is running", addr);
