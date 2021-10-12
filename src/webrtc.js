@@ -7,6 +7,7 @@ import { str2ab, ab2str } from "./protocol.js";
 import { BPMux } from "bpmux";
 import net from "net";
 import pump from "pump";
+import { assert } from "./assert.js";
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
 const DEFAULT_SERVER_PEER_ID = "foobar89";
@@ -29,9 +30,46 @@ class ProxyPeer extends SimplePeer {
     super(simplePeerConfig);
     this.peerId = peerId;
     this.useMultiplex = useMultiplex;
+
+    this._sdpObjects = [];
+    this._connected = false;
+    this._sendingSdpsLoopStarted = false;
+    this.SendSdp = null;
+
+    this._recvedOfferOrAnswer = false
   }
 
-  _onNewMultiplexedDuplex(duplex) {
+  // in case remote peer not missing any offer/answer,
+  // repeatly sending all sdps every N seconds util peer connected or after X retrials
+  startSendingSdpsLoopIfNotStarted() {
+    if (this._sendingSdpsLoopStarted) {
+      return;
+    }
+    this._sendingSdpsLoopStarted = true;
+
+    const RETRY_N = 10;
+    let n = 0;
+    this._retryInterval = setInterval(() => {
+      assert(this.SendSdp);
+      this._sdpObjects.map((sdpObject) => {
+        this.SendSdp(sdpObject);
+      });
+
+      n++;
+      if (n >= RETRY_N) {
+        clearInterval(this._retryInterval);
+        if (!this._connected) {
+          console.error(`peer connect failed after ${RETRY_N} retries...`);
+        }
+      }
+    }, 1000);
+  }
+
+  appendSdps(sdpObject) {
+    this._sdpObjects.push(sdpObject);
+  }
+
+  onNewMultiplexedDuplex(duplex) {
     duplex.on("error", (err) => {
       console.error(err);
     });
@@ -44,7 +82,7 @@ class ProxyPeer extends SimplePeer {
         this.mux = new BPMux(this);
       }
       duplex = this.mux.multiplex();
-      this._onNewMultiplexedDuplex(duplex);
+      this.onNewMultiplexedDuplex(duplex);
     }
     const headerAb = str2ab(addr);
     console.log("headerAb:", headerAb);
@@ -119,7 +157,7 @@ class MultiplexedProxyPeer extends ProxyPeer {
       this.mux = new BPMux(this);
     }
     this.mux.on("handshake", (duplex) => {
-      this._onNewMultiplexedDuplex(duplex);
+      this.onNewMultiplexedDuplex(duplex);
       cb(duplex);
     });
   }

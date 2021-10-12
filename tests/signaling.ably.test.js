@@ -27,6 +27,14 @@ test("ably signaling single", (done) => {
   // WARN: timing issue
   //       start server first in case it miss client's ICE signals!
   // **************************************************************
+  const clientPeer = createTestingPeer(
+    "testingPeer",
+    clientUid,
+    serverUid,
+    null,
+    config.clone().set("isClient", true),
+    AblySignaling
+  );
   const serverPeer = createTestingPeer(
     "testingPeer",
     serverUid,
@@ -35,30 +43,20 @@ test("ably signaling single", (done) => {
     config.clone().set("isClient", false),
     AblySignaling
   );
-  setTimeout(() => {
-    const clientPeer = createTestingPeer(
-      "testingPeer",
-      clientUid,
-      serverUid,
-      null,
-      config.clone().set("isClient", true),
-      AblySignaling
-    );
 
-    let clientDone = false;
-    let serverDone = false;
-    clientPeer._signaling.appendOnReceiveSdpsCallbacks((sdpObjects) => {
-      clientDone = true;
-      if (serverDone === true) {
-        done();
-      }
-    });
+  let clientDone = false;
+  let serverDone = false;
+  clientPeer._signaling.appendOnReceiveSdpsCallbacks((sdpObjects) => {
+    clientDone = true;
+    if (serverDone === true) {
+      done();
+    }
+  });
 
-    serverPeer._signaling.appendOnReceiveSdpsCallbacks((sdpObjects) => {
-      serverDone = true;
-      if (clientDone === true) {
-        done();
-      }
-    });
-  }, 1000);
+  serverPeer._signaling.appendOnReceiveSdpsCallbacks((sdpObjects) => {
+    serverDone = true;
+    if (clientDone === true) {
+      done();
+    }
+  });
 });

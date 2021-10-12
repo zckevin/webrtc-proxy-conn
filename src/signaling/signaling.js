@@ -103,10 +103,26 @@ class BasicSignaling {
           }
           const localPeer = this.localPeers[sdpObject.peerId];
           if (localPeer) {
-            console.log(`signal local peer ${sdpObject.peerId} with sdp!`, sdpObject.rawText())
-            localPeer.signal(sdpObject.rawText());
+            console.log(
+              `signal local peer ${sdpObject.peerId} with sdp!`,
+              sdpObject.rawText()
+            );
+            const rawSdp = sdpObject.rawText();
+            let doSignal = true;
+            // filter out offer/answer signal,
+            // webrtc would throw on repeated offer/answer
+            if (rawSdp.type === "offer" || rawSdp.type === "answer") {
+              if (!localPeer._recvedOfferOrAnswer) {
+                localPeer._recvedOfferOrAnswer = true;
+              } else {
+                doSignal = false;
+              }
+            }
+            if (doSignal) {
+              localPeer.signal(rawSdp);
+            }
           } else {
-            console.error(`local peer ${sdpObject.peerId} not found?`)
+            console.error(`local peer ${sdpObject.peerId} not found?`);
           }
         });
       };
@@ -129,7 +145,7 @@ class BasicSignaling {
     this.recvAnySignals = false;
     setTimeout(() => {
       if (!this.recvAnySignals) {
-        console.error("WARN: Havn't recv any signals for 2 seconds....")
+        console.error("WARN: Havn't recv any signals for 2 seconds....");
       }
     }, 2000);
   }
@@ -181,26 +197,36 @@ class BasicSignaling {
     assert(!this.localPeers[peerId], `duplicate peerid in localPeers`);
     this.localPeers[peerId] = peer;
 
+    peer.SendSdp = this.SendSdp.bind(this);
+
     // on or once?
     peer.on("signal", (sdpText) => {
       this.recvAnySignals = true;
 
       const sdpObject = new SdpObject(peer.peerId, this.uid, dstUid, sdpText);
       console.log("SIGNAL", sdpObject);
+
+      peer.appendSdps(sdpObject);
+      peer.startSendingSdpsLoopIfNotStarted();
+
       this.SendSdp(sdpObject);
     });
 
     peer.once("connect", () => {
+      peer._connected = true;
+      clearInterval(peer._retryInterval);
       console.log("peer connected");
     });
 
     peer.on("close", () => {
       console.log("peer close");
+      clearInterval(peer._retryInterval);
       delete this.localPeers[peerId];
     });
 
     peer.on("error", (err) => {
       console.error("peer err:", err);
+      clearInterval(peer._retryInterval);
       delete this.localPeers[peerId];
     });
 
