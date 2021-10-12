@@ -5,7 +5,7 @@ import * as Ably from "ably";
 import * as vcdiffDecoder from "@ably/vcdiff-decoder";
 
 import { assert, assertNotReached } from "../assert.js";
-import { BasicSignaling } from "./signaling.js";
+import { BasicSignaling, SdpObject } from "./signaling.js";
 import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const ABLY_CHANNEL_NAME = "sdps";
@@ -22,39 +22,25 @@ const DEFAULT_SERVER_PEER_ID = "foobar89";
 const ALBY_FREE_USER_MSG_THROTTLE_TIME = 500; // 800ms
 const ALBY_FREE_USER_MSG_THROTTLE_LEN = 15000;
 
-let CACHED_ABLY_CLIENT = null;
+// let CACHED_ABLY_CLIENT = null;
 
 class AblySignaling extends BasicSignaling {
-  constructor(
-    myId,
-    peerId = DEFAULT_SERVER_PEER_ID,
-    isClient = true,
-    debug_log = false,
-    use_cached_client = true
-  ) {
-    super();
-    this.myId = myId;
-    this.peerId = peerId;
-
-    if (isClient !== true && isClient !== false) {
-      assertNotReached("invalid isClient arg");
-    }
-    this.isClient = isClient;
-
-    if (use_cached_client && CACHED_ABLY_CLIENT) {
-      this.client = CACHED_ABLY_CLIENT;
-    } else {
-      assert(process.env.ABLY_APP_KEY, "process.env.ABLY_APP_KEY not set");
-      this.client = new Ably.default.Realtime({
-        key: process.env.ABLY_APP_KEY,
-        clientId: isClient ? "dummyClient" : "proxyServer",
-        log: { level: debug_log ? 4 : 1 },
-        plugins: {
-          vcdiff: vcdiffDecoder,
-        },
-      });
-      if (use_cached_client) CACHED_ABLY_CLIENT = this.client;
-    }
+  constructor(uid, config, debug_log = false, use_cached_client = false) {
+    super(uid, config);
+    // if (use_cached_client && CACHED_ABLY_CLIENT) {
+    //   this.client = CACHED_ABLY_CLIENT;
+    // } else {
+    assert(process.env.ABLY_APP_KEY, "process.env.ABLY_APP_KEY not set");
+    this.client = new Ably.default.Realtime({
+      key: process.env.ABLY_APP_KEY,
+      clientId: this.config.isClient ? "dummyClient" : "proxyServer",
+      log: { level: debug_log ? 4 : 1 },
+      plugins: {
+        vcdiff: vcdiffDecoder,
+      },
+    });
+    //   if (use_cached_client) CACHED_ABLY_CLIENT = this.client;
+    // }
     this.channel = this.client.channels.get(ABLY_CHANNEL_NAME, {
       params: {
         delta: "vcdiff",
@@ -67,13 +53,14 @@ class AblySignaling extends BasicSignaling {
     this.publishPendingSdpsTimeoutId = 0;
   }
 
-  getSendMsgName(peerId) {
-    return `sdps:${this.isClient ? "offer" : "answer"}:${peerId}`;
+  getSendMsgName() {
+    // return `sdps:${this.config.isClient ? "offerFrom" : "answerTo"}:${this.uid}`;
+
+    // using broadcasting right now...
+    return `sdps:${this.config.isClient ? "offer" : "answer"}:${this.uid}`;
   }
 
-  publishPendingSdps(peerId) {
-    peerId = peerId || this.peerId;
-
+  ablySendPendingSdps() {
     if (this.pendingSdps.length <= 0) {
       return Promise.resolve();
     }
@@ -82,11 +69,15 @@ class AblySignaling extends BasicSignaling {
     }
     return new Promise((resolve, reject) => {
       const s = JSON.stringify(this.pendingSdps);
-      console.log("=============================================");
-      console.log("sdps total len: ", s.length);
+      // console.log("sdps total len: ", s.length);
+      if (this.config.isClient) {
+        console.log("=============================================");
+      } else {
+        console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+      }
 
       this.channel.publish(
-        this.getSendMsgName(peerId),
+        this.getSendMsgName(),
         [...this.pendingSdps], // using a shallow copy
         (err) => {
           if (err) {
@@ -98,7 +89,7 @@ class AblySignaling extends BasicSignaling {
       );
       this.pendingSdps = [];
     }).catch((err) => {
-      console.log(err);
+      console.error(err);
     });
   }
 
@@ -107,48 +98,41 @@ class AblySignaling extends BasicSignaling {
     return s.length >= ALBY_FREE_USER_MSG_THROTTLE_LEN;
   }
 
-  SendSdp(sdp, peerId) {
-    peerId = peerId || this.peerId;
-    assert(peerId, "SendSdp no peerId supplied.");
+  SendSdp(sdpObject) {
+    this.pendingSdps.push(sdpObject);
 
-    const obj = {
-      sdp,
-      fromId: this.myId,
-      toId: peerId,
-    };
-    this.pendingSdps.push(obj);
-
-    let result;
     const now = Date.now();
     if (
       now - this.lastSendTime < ALBY_FREE_USER_MSG_THROTTLE_TIME &&
       !this.pendingSdpsLengthExceedsLimit()
     ) {
       this.publishPendingSdpsTimeoutId = setTimeout(
-        this.publishPendingSdps.bind(this, peerId),
+        this.ablySendPendingSdps.bind(this),
         ALBY_FREE_USER_MSG_THROTTLE_TIME
       );
-      result = Promise.resolve();
     } else {
-      result = this.publishPendingSdps(peerId);
+      this.ablySendPendingSdps();
     }
     this.lastSendTime = now;
-    return result;
   }
 
   // OVERRIDE
-  OnReceiveSdps(resolve, reject, only_once = true) {
-    this.channel.subscribe((msg) => {
-      // resolve array instead of object because Leancloud signaling does this.
-      if (this.isClient) {
-        if (msg.name === `sdps:answer:${this.myId}`) {
-          console.log("Ably client recv: ", msg);
-          resolve(msg.data);
+  setupOnReceiveSdps(resolve, reject, only_once = true) {
+    this.channel.subscribe((ablyMsg) => {
+      // error handling?
+      const sdpObjects = SdpObject.parseSerializedSdpObjects(ablyMsg.data);
+      if (this.config.isClient) {
+        if (ablyMsg.name.startsWith("sdps:answer:")) {
+          const filtered = sdpObjects.filter(
+            (sdpObject) => sdpObject.dstUid === this.uid
+          );
+          console.log("Ably client recv: ", filtered);
+          resolve(filtered);
         }
       } else {
-        if (msg.name.startsWith("sdps:offer:")) {
-          console.log("Ably Server recv: ", msg);
-          resolve(msg.data);
+        if (ablyMsg.name.startsWith("sdps:offer:")) {
+          console.log("Ably Server recv: ", ablyMsg);
+          resolve(sdpObjects);
         }
       }
       // if (only_once) {
@@ -158,7 +142,7 @@ class AblySignaling extends BasicSignaling {
   }
 
   WaitForSdpsForever(resolve) {
-    this.OnReceiveSdps(resolve, null, false);
+    this.setupOnReceiveSdps(resolve, null, false);
   }
 
   Close() {

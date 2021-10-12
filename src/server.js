@@ -10,6 +10,7 @@ import leancloud from "./signaling/leancloud.js";
 // import LeancloudSignaling from "./signaling/signaling.leancloud.js";
 import AblySignaling from "./signaling/signaling.ably.js";
 import { ProxyClient } from "./client.js";
+import { SignalingConfig } from "./signaling/signaling.js";
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
 const DEFAULT_SERVER_PEER_ID = "foobar89";
@@ -73,18 +74,16 @@ function RunLoopAbly() {
 
 class Server {
   constructor(signaling) {
+    const config = new SignalingConfig()
+      .set("isClient", false)
+      .set("useMultiplex", false)
+      .set("serverPeerForTesting", false);
     this.signaling =
-      signaling ||
-      new AblySignaling(
-        DEFAULT_SERVER_PEER_ID,
-        null, // peerId
-        false // isClient
-      );
-    this.signaling.OnReceiveSdps(this.OnReceiveSdps.bind(this));
+      signaling || new AblySignaling(DEFAULT_SERVER_PEER_ID, config);
+    this.signaling.appendOnReceiveSdpsCallbacks(this.OnReceiveSdps.bind(this));
   }
 
   OnReceiveSdps(sdpObjects) {
-    console.log("2222222", sdpObjects);
     sdpObjects.map((sdpObject) => {
       const peerId = sdpObject.peerId;
       if (!peerId) {
@@ -93,7 +92,7 @@ class Server {
       }
       let peer = this.signaling.localPeers[peerId];
       if (!peer) {
-        console.log("111111111 server accept new peer", peerId);
+        console.log('sbsbsbs server create peer')
         peer = this.signaling.CreatePeer(peerId, sdpObject.srcUid);
 
         if (this.onNewPeer) {
@@ -114,7 +113,6 @@ class Server {
 class TestingServer {
   constructor(peer, duplex) {
     duplex.on("data", (data) => {
-      // console.log("2222", data)
       peer.onRecvHeader(duplex, data);
     });
   }

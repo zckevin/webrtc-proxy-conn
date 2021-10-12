@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 
 import { DialWebrtcConnForTesting } from "../src/client.js";
-import { MockSignaling } from "../src/signaling/signaling.js";
+import { MockSignaling, SignalingConfig } from "../src/signaling/signaling.js";
 import { relativeTimeThreshold } from "moment";
 import { assert } from "../src/assert.js";
 
@@ -12,130 +12,16 @@ import { SingleEntryPlugin } from "webpack";
 import { sign } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 
+import {
+  Registry,
+  createTestingSignaling,
+  createTestingPeer,
+  CreateTestPairs,
+  spawnLocalTcpServer,
+} from "./helper";
+
+// For jest testing core dump?
 // process.on("beforeExit", (code) => process.exit(code));
-
-class Registry {
-  constructor() {
-    // uid -> BasicSignaling
-    this.signalings = {};
-
-    this.pendingSdps = {};
-    this.callbacks = {};
-  }
-
-  addSignaling(uid, signaling) {
-    assert(!this.signalings[uid]);
-    this.signalings[uid] = signaling;
-
-    const sdps = this.pendingSdps[uid];
-    if (sdps && sdps.length > 0) {
-      sdps.map((sdp) => {
-        this.sendSdp(sdp.dstUid, sdp);
-      });
-      this.pendingSdps[uid] = [];
-    }
-  }
-
-  registerCallback(uid, fn) {
-    assert(!this.callbacks[uid]);
-    this.callbacks[uid] = fn;
-  }
-
-  sendSdp(dstUid, sdpObject) {
-    const fn = this.callbacks[dstUid];
-    assert(fn, `callback for uid: ${dstUid} is not set`);
-    fn([sdpObject]);
-  }
-
-  signal(dstUid, sdpObject) {
-    assert(dstUid);
-    const dstSignaling = this.signalings[dstUid];
-    if (dstSignaling) {
-      this.sendSdp(dstUid, sdpObject);
-    } else {
-      if (this.pendingSdps[dstUid]) {
-        this.pendingSdps[dstUid].push(sdpObject);
-      } else {
-        this.pendingSdps[dstUid] = [sdpObject];
-      }
-    }
-  }
-}
-
-function createTestingSignaling(uid, dstUid, registry, isClient, config = {}) {
-  const usedConfig = {
-    isClient,
-    serverPeerForTesting: true,
-    useMultiplex: config.useMultiplex || false,
-  };
-  if (!isClient && config.serverPeerForTesting === false) {
-    usedConfig.serverPeerForTesting = false;
-  }
-
-  const signaling = new MockSignaling(uid, usedConfig, registry);
-  registry.addSignaling(uid, signaling);
-  return signaling;
-}
-
-function createTestingPeer(
-  peerId,
-  uid,
-  dstUid,
-  registry,
-  isClient,
-  config = {}
-) {
-  const signaling = createTestingSignaling(
-    uid,
-    dstUid,
-    registry,
-    isClient,
-    config
-  );
-  peerId = peerId || uuidv4();
-  const peer = signaling.CreatePeer(peerId, dstUid);
-  return peer;
-}
-
-function CreateTestPairs(registry, config) {
-  const srcUid = 2;
-  const dstUid = 3;
-  const peerId = uuidv4();
-  const client = createTestingPeer(
-    peerId,
-    srcUid,
-    dstUid,
-    registry,
-    true,
-    config
-  );
-  const server = createTestingPeer(
-    peerId,
-    dstUid,
-    srcUid,
-    registry,
-    false,
-    config
-  );
-  return [client, server];
-}
-
-function spawnLocalTcpServer(payload, cb) {
-  if (typeof payload === "function") {
-    payload = payload();
-  }
-  const tcpServer = net.createServer((sock) => {
-    sock.end(payload);
-  });
-
-  tcpServer.listen(0, "localhost", () => {
-    const addr = `localhost:${tcpServer.address().port}`;
-    console.log("TCP Server is running at", addr);
-    cb(addr);
-  });
-
-  return tcpServer;
-}
 
 test("simple peers", (done) => {
   const registry = new Registry();
@@ -185,23 +71,23 @@ test("server accept single webrtc peer", (done) => {
   const clientUid = 2;
   const serverUid = 3;
 
+  const config = new SignalingConfig()
+    .set("useMultiplex", false)
+    .set("serverPeerForTesting", false);
+
   const clientPeer = createTestingPeer(
     null,
     clientUid,
     serverUid,
     registry,
-    true,
-    {
-      useMultiplex: false,
-    }
+    config.clone().set("isClient", true)
   );
 
   const serverSignaling = createTestingSignaling(
     serverUid,
     null,
     registry,
-    false,
-    { useMultiplex: false, serverPeerForTesting: false }
+    config.clone().set("isClient", false)
   );
   const server = new Server(serverSignaling);
 
@@ -223,9 +109,9 @@ test("server accept single webrtc peer", (done) => {
 
 test("peers with multiplexing, single duplex", (done) => {
   const registry = new Registry();
-  const [clientPeer, serverPeer] = CreateTestPairs(registry, {
-    useMultiplex: true,
-  });
+  const config = new SignalingConfig().set("useMultiplex", true);
+
+  const [clientPeer, serverPeer] = CreateTestPairs(registry, config);
 
   const payload = new Uint8Array([1, 2, 3]);
 
@@ -248,6 +134,8 @@ test("peers with multiplexing, single duplex", (done) => {
 test("server accept multiple webrtc peers", (done) => {
   const registry = new Registry();
 
+  const config = new SignalingConfig().set("serverPeerForTesting", false);
+
   const N = 10;
   const clientUid = 2;
   const serverUid = 100;
@@ -259,10 +147,7 @@ test("server accept multiple webrtc peers", (done) => {
       clientUid + i,
       serverUid,
       registry,
-      true,
-      {
-        useMultiplex: false,
-      }
+      config.clone().set("isClient", true)
     );
   }
 
@@ -270,8 +155,7 @@ test("server accept multiple webrtc peers", (done) => {
     serverUid,
     null,
     registry,
-    false,
-    { useMultiplex: false, serverPeerForTesting: false }
+    config.clone().set("isClient", false)
   );
   const server = new Server(serverSignaling);
 
@@ -301,28 +185,26 @@ test("server accept multiple webrtc peers", (done) => {
 test("server accept single peers, using multiplex", (done) => {
   const registry = new Registry();
 
+  const config = new SignalingConfig()
+    .set("serverPeerForTesting", false)
+    .set("useMultiplex", true);
+
   const clientUid = 2;
   const serverUid = 100;
-
-  const useMultiplex = true;
 
   const clientPeer = createTestingPeer(
     null,
     clientUid,
     serverUid,
     registry,
-    true,
-    {
-      useMultiplex,
-    }
+    config.clone().set("isClient", true)
   );
 
   const serverSignaling = createTestingSignaling(
     serverUid,
     null,
     registry,
-    false,
-    { useMultiplex, serverPeerForTesting: false }
+    config.clone().set("isClient", false)
   );
   const server = new Server(serverSignaling);
 

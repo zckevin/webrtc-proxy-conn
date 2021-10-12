@@ -4,109 +4,53 @@
 import { jest } from "@jest/globals";
 
 import AblySignaling from "../src/signaling/signaling.ably.js";
+import {SignalingConfig} from "../src/signaling/signaling"
+import {
+  Registry,
+  createTestingSignaling,
+  createTestingPeer,
+  CreateTestPairs,
+  spawnLocalTcpServer,
+} from "./helper";
 
 jest.setTimeout(5 * 1000);
 
 test("ably signaling single", (done) => {
-  const fromId = "from123";
-  const toId = "to456";
-  const sdpOffer = { type: "offer", sdp: "sdp" };
-  const sdpAnswer = { type: "answer", sdp: "sdp" };
+  const config = new SignalingConfig()
 
-  const debugLog = false;
-  const use_cached_client = false;
-  const client = new AblySignaling(
-    fromId,
-    toId,
-    true,
-    debugLog,
-    use_cached_client
+  const clientUid = 2;
+  const serverUid = 100;
+
+  const clientPeer = createTestingPeer(
+    "testingPeer",
+    clientUid,
+    serverUid,
+    null,
+    config.clone().set("isClient", true),
+    AblySignaling
   );
-  const server = new AblySignaling(
-    toId,
-    fromId,
-    false,
-    debugLog,
-    use_cached_client
+  const serverPeer = createTestingPeer(
+    "testingPeer",
+    serverUid,
+    clientUid,
+    null,
+    config.clone().set("isClient", false),
+    AblySignaling
   );
 
-  client.OnReceiveSdps((sdps) => {
-    expect(sdps.length).toEqual(1);
-    expect(sdps[0].sdp).toEqual(sdpAnswer);
-
-    // wait for Ably unsubscribe, and then close client/conn
-    setTimeout(() => {
-      client.Close();
-      server.Close();
-
+  let clientDone = false;
+  let serverDone = false;
+  clientPeer._signaling.appendOnReceiveSdpsCallbacks((sdpObjects) => {
+    clientDone = true
+    if (serverDone === true) {
       done();
-    }, 100);
-  });
-
-  server.OnReceiveSdps((sdps) => {
-    expect(sdps.length).toEqual(1);
-    expect(sdps[0].sdp).toEqual(sdpOffer);
-
-    server.SendSdp(sdpAnswer);
-  });
-
-  // wait for Ably subscribe, in case reciver missing sender's message
-  setTimeout(() => {
-    client.SendSdp(sdpOffer);
-  }, 500);
-});
-
-test("ably signaling multiple clients", (done) => {
-  const toId = "to456";
-  const sdpOffer = { type: "offer", sdp: "sdp" };
-  const sdpAnswer = { type: "answer", sdp: "sdp" };
-
-  const isClient = true;
-  const debugLog = false;
-  const use_cached_client = false;
-
-  const clients = [1, 2, 3].map(
-    (id) =>
-      new AblySignaling(
-        `from${id}`,
-        toId,
-        isClient,
-        debugLog,
-        use_cached_client
-      )
-  );
-  const server = new AblySignaling(
-    toId,
-    null, // toId is unknown for server
-    !isClient,
-    debugLog,
-    use_cached_client
-  );
-
-  let n = 0;
-  const onClientResolve = (sdps) => {
-    expect(sdps[0].sdp).toEqual(sdpAnswer);
-
-    n += sdps.length;
-    if (n === clients.length) {
-      // wait for Ably unsubscribe, and then close client/conn
-      setTimeout(() => {
-        clients.map(client => client.Close());
-        server.Close()
-        done()
-      }, 100);
     }
-  };
-  clients.map(client => client.OnReceiveSdps(onClientResolve));
-
-  server.WaitForSdpsForever((sdps) => {
-    expect(sdps[0].sdp).toEqual(sdpOffer);
-
-    server.SendSdp(sdpAnswer, sdps[0].fromId);
   });
 
-  // wait for Ably subscribe, in case reciver missing sender's message
-  setTimeout(() => {
-    clients.map(client => client.SendSdp(sdpOffer));
-  }, 500);
+  serverPeer._signaling.appendOnReceiveSdpsCallbacks((sdpObjects) => {
+    serverDone = true
+    if (clientDone === true) {
+      done();
+    }
+  });
 });

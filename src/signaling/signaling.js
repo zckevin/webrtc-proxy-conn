@@ -14,6 +14,54 @@ const ICE_SERVERS = [
   { urls: "stun:global.stun.twilio.com:3478?transport=udp" },
 ];
 
+class SignalingConfig {
+  constructor() {
+    this.isClient = false;
+    this.useMultiplex = false;
+
+    this.serverPeerForTesting = true;
+    this.useTrickle = true;
+
+    // this.setupSetters();
+  }
+
+  set(key, value) {
+    assert(
+      this.hasOwnProperty(key),
+      `unknown key: ${key} set in SignalingConfig`
+    );
+    this[key] = value;
+    return this;
+  }
+
+  /*
+  setupSetters() {
+    const keys = Object.keys(this);
+    const fn = function (key) {
+      const expr = `
+      this.set${key.charAt(0).toUpperCase() + key.slice(1)} = function(${key}) {
+        this.${key} = ${key};
+        return this;
+      }`;
+      eval(expr);
+    };
+    keys.map((key) => {
+      fn.call(this, key);
+    });
+  }
+  */
+
+  clone() {
+    // https://stackoverflow.com/questions/41474986/how-to-clone-a-javascript-es6-class-instance
+    const cloned = Object.assign(
+      Object.create(Object.getPrototypeOf(this)),
+      this
+    );
+    return cloned;
+  }
+}
+
+// pod object
 class SdpObject {
   constructor(peerId, srcUid, dstUid, sdpText) {
     this.peerId = peerId;
@@ -24,6 +72,12 @@ class SdpObject {
 
   rawText() {
     return this.sdpText;
+  }
+
+  static parseSerializedSdpObjects(objs) {
+    return objs.map(
+      (o) => new SdpObject(o.peerId, o.srcUid, o.dstUid, o.sdpText)
+    );
   }
 }
 
@@ -37,8 +91,11 @@ class BasicSignaling {
     // peerId -> ProxyPeer
     this.localPeers = {};
 
+    this.onReceiveSdpsCallbacks = [];
+
+    const that = this;
     const fn = function () {
-      this.OnReceiveSdps((sdpObjects) => {
+      const callback = (sdpObjects) => {
         sdpObjects.map((sdpObject) => {
           if (!sdpObject.peerId) {
             // error?
@@ -49,17 +106,32 @@ class BasicSignaling {
             localPeer.signal(sdpObject.rawText());
           }
         });
+      };
+      if (config.isClient || config.serverPeerForTesting) {
+        this.onReceiveSdpsCallbacks.push(callback);
+      }
+
+      this.setupOnReceiveSdps((sdpObjects) => {
+        that.onReceiveSdpsCallbacks.map((cb) => {
+          cb.call(that, sdpObjects);
+        });
       });
     };
 
-    if (config.isClient || config.serverPeerForTesting) {
-      // wait for subclass constructor finishes,
-      // then subclass instance's this is ready
-      setTimeout(fn.bind(this), 0);
-    }
+    // wait for subclass constructor finishes, subclass instance is ready
+    // and then we could call subinstance.setupOnReceiveSdps()
+    setTimeout(fn.bind(this), 0);
   }
 
-  OnReceiveSdps(callback) {
+  appendOnReceiveSdpsCallbacks(callback) {
+    assert(
+      typeof callback === "function",
+      "append none-function object to onReceiveSdpsCallbacks"
+    );
+    this.onReceiveSdpsCallbacks.push(callback);
+  }
+
+  setupOnReceiveSdps(callback) {
     assertNotReached("Interface not IMPLEMENTED");
   }
 
@@ -70,7 +142,7 @@ class BasicSignaling {
   CreateSimplePeer(peerId) {
     const simplePeerConfig = {
       initiator: this.config.isClient,
-      trickle: true,
+      trickle: this.config.useTrickle,
       config: {
         iceServers: ICE_SERVERS,
       },
@@ -79,11 +151,14 @@ class BasicSignaling {
     if (wrtc && Object.keys(wrtc).length !== 0) {
       simplePeerConfig["wrtc"] = wrtc;
     }
+    let peer;
     if (this.config.useMultiplex) {
-      return new MultiplexedProxyPeer(peerId, simplePeerConfig);
+      peer = new MultiplexedProxyPeer(peerId, simplePeerConfig);
     } else {
-      return new ProxyPeer(peerId, simplePeerConfig);
+      peer = new ProxyPeer(peerId, simplePeerConfig);
     }
+    peer._signaling = this;
+    return peer;
   }
 
   // peerId: for server signalings, use same peerId as client in a client/server pair
@@ -130,9 +205,9 @@ class MockSignaling extends BasicSignaling {
     this.registry.signal(sdpObject.dstUid, sdpObject);
   }
 
-  OnReceiveSdps(fn) {
+  setupOnReceiveSdps(fn) {
     this.registry.registerCallback(this.uid, fn);
   }
 }
 
-export { SdpObject, BasicSignaling, MockSignaling };
+export { SignalingConfig, SdpObject, BasicSignaling, MockSignaling };
