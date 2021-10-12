@@ -7,10 +7,9 @@ import { str2ab, ab2str } from "./protocol.js";
 import { BPMux } from "bpmux";
 import net from "net";
 import pump from "pump";
-import { assert } from "./assert.js";
+import { assert, assertNotReached } from "./assert.js";
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
-const DEFAULT_SERVER_PEER_ID = "foobar89";
 
 function addrToIPPort(addr) {
   const m = ADDR_RE.exec(addr);
@@ -36,7 +35,7 @@ class ProxyPeer extends SimplePeer {
     this._sendingSdpsLoopStarted = false;
     this.SendSdp = null;
 
-    this._recvedOfferOrAnswer = false
+    this._recvedOfferOrAnswer = false;
   }
 
   // in case remote peer not missing any offer/answer,
@@ -80,16 +79,28 @@ class ProxyPeer extends SimplePeer {
     if (this.useMultiplex) {
       if (!this.mux) {
         this.mux = new BPMux(this);
+        this.mux.on("error", (err) => {
+          console.error("bpmux error:", err);
+        });
       }
       duplex = this.mux.multiplex();
       this.onNewMultiplexedDuplex(duplex);
+    } else {
+      if (this._webrtcConnDrainedForNonMultiplexedPeer) {
+        assertNotReached(
+          "dialWebrtcConn could only be called once for non-multiplexed peer!"
+        );
+      } else {
+        this._webrtcConnDrainedForNonMultiplexedPeer = true;
+      }
     }
     const headerAb = str2ab(addr);
-    console.log("headerAb:", headerAb);
+    // console.log("DialWebrtcConn wrote headerAb:", headerAb);
     duplex.write(new Uint8Array(headerAb));
     return duplex;
   }
 
+  // server side ProxyPeer only
   onRecvHeader(duplex, data) {
     let ab;
     if (data instanceof Uint8Array) {
@@ -112,7 +123,9 @@ class ProxyPeer extends SimplePeer {
     }
 
     // header is recved, then pump to conn
-    this.removeListener("data", this.onRecvHeader);
+
+    // removeListener v.s. removeEventListener?
+    duplex.removeListener("data", duplex.onRecvHeaderToBeCanceled);
 
     const tcpConn = dialNetConn(addrStr, () => {
       if (leftAb.byteLength > 0) {
@@ -123,10 +136,17 @@ class ProxyPeer extends SimplePeer {
 
     // bi-directional pipe
     pump(duplex, tcpConn, (err) => {
+      // would err be nil???
+      if (!err) {
+        return;
+      }
       duplex.destroy();
       console.error("pump err write", err);
     });
     pump(tcpConn, duplex, (err) => {
+      if (!err) {
+        return;
+      }
       duplex.destroy();
       console.error("pump err read", err);
     });
@@ -138,7 +158,6 @@ class ProxyPeer extends SimplePeer {
     tcpConn.on("close", () => {
       console.log("tcp conn close");
       duplex.destroy();
-      this.destroy();
     });
   }
 
@@ -155,6 +174,9 @@ class MultiplexedProxyPeer extends ProxyPeer {
   onNewWebrtcConn(cb) {
     if (!this.mux) {
       this.mux = new BPMux(this);
+      this.mux.on("error", (err) => {
+        console.error("bpmux error:", err);
+      });
     }
     this.mux.on("handshake", (duplex) => {
       this.onNewMultiplexedDuplex(duplex);

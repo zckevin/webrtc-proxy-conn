@@ -9,7 +9,6 @@ import { BasicSignaling, SdpObject } from "./signaling.js";
 import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const ABLY_CHANNEL_NAME = "sdps";
-const DEFAULT_SERVER_PEER_ID = "foobar89";
 
 /*
  * Ably free user limitation:
@@ -26,8 +25,8 @@ const ALBY_FREE_USER_MSG_THROTTLE_LEN = 15000;
 
 class AblySignaling extends BasicSignaling {
   constructor(uid, config, debug_log = true, use_cached_client = false) {
-    console.log(uid, config, debug_log);
     super(uid, config);
+    console.log(uid, config, debug_log);
     // if (use_cached_client && CACHED_ABLY_CLIENT) {
     //   this.client = CACHED_ABLY_CLIENT;
     // } else {
@@ -44,12 +43,21 @@ class AblySignaling extends BasicSignaling {
     });
     //   if (use_cached_client) CACHED_ABLY_CLIENT = this.client;
     // }
-    this.channel = this.client.channels.get(ABLY_CHANNEL_NAME, {
-      params: {
-        delta: "vcdiff",
+    this.channel = this.client.channels.get(ABLY_CHANNEL_NAME);
+    this.channel.setOptions(
+      {
+        params: {
+          delta: "vcdiff",
+        },
       },
-    });
-    this.channel.attach();
+      (err) => {
+        if (err) {
+          console.error(err);
+        } else {
+          this.channel.attach();
+        }
+      }
+    );
 
     this.lastSendTime = 0;
     this.pendingSdps = [];
@@ -107,7 +115,10 @@ class AblySignaling extends BasicSignaling {
     const s = JSON.stringify(this.pendingSdps);
     // console.log("sdps total len: ", s.length);
     if (this.config.isClient) {
-      console.log("=============================================", this.pendingSdps);
+      console.log(
+        "=============================================",
+        this.pendingSdps
+      );
     } else {
       console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
     }

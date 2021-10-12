@@ -1,19 +1,14 @@
 "use strict";
 
 import net from "net";
-import pump from "pump";
 
 import { assert, assertNotReached } from "./assert.js";
-import { ab2str } from "./protocol.js";
-import { MultiplexedPeer } from "./webrtc.js";
-import leancloud from "./signaling/leancloud.js";
 // import LeancloudSignaling from "./signaling/signaling.leancloud.js";
 import AblySignaling from "./signaling/signaling.ably.js";
-import { ProxyClient } from "./client.js";
 import { SignalingConfig } from "./signaling/signaling.js";
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
-const DEFAULT_SERVER_PEER_ID = "foobar89";
+const DEFAULT_SERVER_PEER_ID = "server_89";
 
 function addrToIPPort(addr) {
   const m = ADDR_RE.exec(addr);
@@ -53,30 +48,11 @@ function RunLoopLeancloud() {
 }
 */
 
-function RunLoopAbly() {
-  const signaling = new AblySignaling(
-    DEFAULT_SERVER_PEER_ID,
-    null, // peerId
-    false // isClient
-  );
-
-  signaling.WaitForSdpsForever((sdps) => {
-    // in case any fatal errors...
-    try {
-      sdps.map((sdp) => {
-        createPeer(sdp.fromId, sdp.sdp, signaling);
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  });
-}
-
 class Server {
   constructor(signaling) {
     const config = new SignalingConfig()
       .set("isClient", false)
-      .set("useMultiplex", false)
+      .set("useMultiplex", true)
       .set("serverPeerForTesting", false);
     this.signaling =
       signaling || new AblySignaling(DEFAULT_SERVER_PEER_ID, config);
@@ -92,7 +68,7 @@ class Server {
       }
       let peer = this.signaling.localPeers[peerId];
       if (!peer) {
-        console.log('sbsbsbs server create peer')
+        console.log("sbsbsbs server create peer");
         peer = this.signaling.CreatePeer(peerId, sdpObject.srcUid);
 
         if (this.onNewPeer) {
@@ -100,9 +76,11 @@ class Server {
         }
 
         peer.onNewWebrtcConn((duplex) => {
-          duplex.on("data", (data) => {
+          const onRecvHeaderToBeCanceled = (data) => {
             peer.onRecvHeader(duplex, data);
-          });
+          };
+          duplex.onRecvHeaderToBeCanceled = onRecvHeaderToBeCanceled;
+          duplex.on("data", onRecvHeaderToBeCanceled);
         });
       }
       peer.signal(sdpObject.rawText());
@@ -112,10 +90,12 @@ class Server {
 
 class TestingServer {
   constructor(peer, duplex) {
-    duplex.on("data", (data) => {
+    const onRecvHeaderToBeCanceled = (data) => {
       peer.onRecvHeader(duplex, data);
-    });
+    };
+    duplex.onRecvHeaderToBeCanceled = onRecvHeaderToBeCanceled;
+    duplex.on("data", onRecvHeaderToBeCanceled);
   }
 }
 
-export { RunLoopAbly, Server, TestingServer };
+export { DEFAULT_SERVER_PEER_ID, Server, TestingServer };

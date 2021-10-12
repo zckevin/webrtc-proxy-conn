@@ -112,13 +112,15 @@ class BasicSignaling {
             // filter out offer/answer signal,
             // webrtc would throw on repeated offer/answer
             if (rawSdp.type === "offer" || rawSdp.type === "answer") {
-              if (!localPeer._recvedOfferOrAnswer) {
-                localPeer._recvedOfferOrAnswer = true;
-              } else {
+              if (localPeer._recvedOfferOrAnswer) {
+                console.log("/////////////////////////////////////////////////////////////")
                 doSignal = false;
+              } else {
+                localPeer._recvedOfferOrAnswer = true;
               }
             }
             if (doSignal) {
+              assert(localPeer._recvedOfferOrAnswer);
               localPeer.signal(rawSdp);
             }
           } else {

@@ -60,11 +60,19 @@ let browserConfig = {
 };
 
 let nodeConfig = {
-  entry: "./src/server.js",
+  entry: {
+    main: {
+      import: "./src/client.js",
+      library: {
+        name: "WebrtcConn",
+        type: "commonjs",
+      },
+    },
+  },
   target: "node",
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "bundle.node.js",
+    filename: "[name].cjs",
   },
   module: {
     rules: [
@@ -80,4 +88,5 @@ let nodeConfig = {
   },
 };
 
-module.exports = [browserConfig];
+// module.exports = [browserConfig];
+module.exports = [nodeConfig];

@@ -18,7 +18,7 @@ import {
   createTestingPeer,
   CreateTestPairs,
   spawnLocalTcpServer,
-} from "./helper";
+} from "./helper.js";
 
 // For jest testing core dump?
 // process.on("beforeExit", (code) => process.exit(code));

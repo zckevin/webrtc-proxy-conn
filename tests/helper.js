@@ -109,14 +109,31 @@ function CreateTestPairs(registry, config, SignalingConstructor) {
 }
 
 function spawnLocalTcpServer(payload, cb) {
-  if (typeof payload === "function") {
-    payload = payload();
-  }
   const tcpServer = net.createServer((sock) => {
-    sock.end(payload);
+    if (typeof payload === "function") {
+      sock.end(payload());
+    } else {
+      sock.end(payload);
+    }
   });
 
   tcpServer.listen(0, "localhost", () => {
+    const addr = `localhost:${tcpServer.address().port}`;
+    console.log("TCP Server is running at", addr);
+    cb(addr);
+  });
+
+  return tcpServer;
+}
+
+function spawnLocalTcpServer2(cb) {
+  const tcpServer = net.createServer((sock) => {
+    sock.on("data", (data) => {
+      sock.end(data);
+    });
+  });
+
+  tcpServer.listen(18000, "localhost", () => {
     const addr = `localhost:${tcpServer.address().port}`;
     console.log("TCP Server is running at", addr);
     cb(addr);
@@ -131,4 +148,5 @@ export {
   createTestingPeer,
   CreateTestPairs,
   spawnLocalTcpServer,
+  spawnLocalTcpServer2,
 };
