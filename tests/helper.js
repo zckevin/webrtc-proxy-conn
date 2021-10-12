@@ -85,8 +85,7 @@ function createTestingPeer(
   return peer;
 }
 
-function CreateTestPairs(registry, config) {
-  config = config || new SignalingConfig();
+function CreateTestPairs(registry, config, SignalingConstructor) {
   const srcUid = 2;
   const dstUid = 3;
   const peerId = uuidv4();
@@ -95,14 +94,16 @@ function CreateTestPairs(registry, config) {
     srcUid,
     dstUid,
     registry,
-    config.clone().set("isClient", true)
+    config.clone().set("isClient", true),
+    SignalingConstructor
   );
   const server = createTestingPeer(
     peerId,
     dstUid,
     srcUid,
     registry,
-    config.clone().set("isClient", false)
+    config.clone().set("isClient", false),
+    SignalingConstructor
   );
   return [client, server];
 }

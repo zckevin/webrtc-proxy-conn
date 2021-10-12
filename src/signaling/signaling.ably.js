@@ -25,7 +25,8 @@ const ALBY_FREE_USER_MSG_THROTTLE_LEN = 15000;
 // let CACHED_ABLY_CLIENT = null;
 
 class AblySignaling extends BasicSignaling {
-  constructor(uid, config, debug_log = false, use_cached_client = false) {
+  constructor(uid, config, debug_log = true, use_cached_client = false) {
+    console.log(uid, config, debug_log);
     super(uid, config);
     // if (use_cached_client && CACHED_ABLY_CLIENT) {
     //   this.client = CACHED_ABLY_CLIENT;
@@ -33,8 +34,10 @@ class AblySignaling extends BasicSignaling {
     assert(process.env.ABLY_APP_KEY, "process.env.ABLY_APP_KEY not set");
     this.client = new Ably.default.Realtime({
       key: process.env.ABLY_APP_KEY,
-      clientId: this.config.isClient ? "dummyClient" : "proxyServer",
-      log: { level: debug_log ? 4 : 1 },
+      // clientId: this.config.isClient ? "dummyClient" : "proxyServer",
+      clientId: `${uid}`,
+      // log: { level: debug_log ? 4 : 1 },
+      log: { level: 4 },
       plugins: {
         vcdiff: vcdiffDecoder,
       },
@@ -60,6 +63,7 @@ class AblySignaling extends BasicSignaling {
     return `sdps:${this.config.isClient ? "offer" : "answer"}:${this.uid}`;
   }
 
+  /*
   ablySendPendingSdps() {
     if (this.pendingSdps.length <= 0) {
       return Promise.resolve();
@@ -92,12 +96,40 @@ class AblySignaling extends BasicSignaling {
       console.error(err);
     });
   }
+  */
+  ablySendPendingSdps() {
+    if (this.pendingSdps.length <= 0) {
+      return;
+    }
+    if (this.publishPendingSdpsTimeoutId) {
+      clearTimeout(this.publishPendingSdpsTimeoutId);
+    }
+    const s = JSON.stringify(this.pendingSdps);
+    // console.log("sdps total len: ", s.length);
+    if (this.config.isClient) {
+      console.log("=============================================", this.pendingSdps);
+    } else {
+      console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+    }
+
+    this.channel.publish(
+      this.getSendMsgName(),
+      [...this.pendingSdps], // using a shallow copy
+      (err) => {
+        if (err) {
+          console.error(err);
+        }
+      }
+    );
+    this.pendingSdps = [];
+  }
 
   pendingSdpsLengthExceedsLimit() {
     const s = JSON.stringify(this.pendingSdps);
     return s.length >= ALBY_FREE_USER_MSG_THROTTLE_LEN;
   }
 
+  // OVERRIDE
   SendSdp(sdpObject) {
     this.pendingSdps.push(sdpObject);
 

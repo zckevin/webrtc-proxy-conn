@@ -103,7 +103,10 @@ class BasicSignaling {
           }
           const localPeer = this.localPeers[sdpObject.peerId];
           if (localPeer) {
+            console.log(`signal local peer ${sdpObject.peerId} with sdp!`, sdpObject.rawText())
             localPeer.signal(sdpObject.rawText());
+          } else {
+            console.error(`local peer ${sdpObject.peerId} not found?`)
           }
         });
       };
@@ -121,6 +124,14 @@ class BasicSignaling {
     // wait for subclass constructor finishes, subclass instance is ready
     // and then we could call subinstance.setupOnReceiveSdps()
     setTimeout(fn.bind(this), 0);
+
+    this.startTime = Date.now();
+    this.recvAnySignals = false;
+    setTimeout(() => {
+      if (!this.recvAnySignals) {
+        console.error("WARN: Havn't recv any signals for 2 seconds....")
+      }
+    }, 2000);
   }
 
   appendOnReceiveSdpsCallbacks(callback) {
@@ -172,6 +183,8 @@ class BasicSignaling {
 
     // on or once?
     peer.on("signal", (sdpText) => {
+      this.recvAnySignals = true;
+
       const sdpObject = new SdpObject(peer.peerId, this.uid, dstUid, sdpText);
       console.log("SIGNAL", sdpObject);
       this.SendSdp(sdpObject);

@@ -23,9 +23,17 @@ import {
 // For jest testing core dump?
 // process.on("beforeExit", (code) => process.exit(code));
 
-test("simple peers", (done) => {
+// function ClientTests(SignalingConstructor) {
+const SignalingConstructor = global.SignalingConstructor || MockSignaling;
+
+test("simple peer pair", (done) => {
   const registry = new Registry();
-  const [client, server] = CreateTestPairs(registry);
+  const config = new SignalingConfig();
+  const [client, server] = CreateTestPairs(
+    registry,
+    config,
+    SignalingConstructor
+  );
 
   const payload = new Uint8Array([1, 2, 3]);
   client.on("connect", () => {
@@ -47,7 +55,13 @@ test("simple peers", (done) => {
 
 test("simple client with testing server", (done) => {
   const registry = new Registry();
-  const [client, server] = CreateTestPairs(registry);
+  const config = new SignalingConfig();
+  const [client, server] = CreateTestPairs(
+    registry,
+    config,
+    SignalingConstructor
+  );
+
   const webrtcServer = new TestingServer(server, server);
 
   const payload = new Uint8Array([1, 2, 3]);
@@ -80,14 +94,16 @@ test("server accept single webrtc peer", (done) => {
     clientUid,
     serverUid,
     registry,
-    config.clone().set("isClient", true)
+    config.clone().set("isClient", true),
+    SignalingConstructor
   );
 
   const serverSignaling = createTestingSignaling(
     serverUid,
     null,
     registry,
-    config.clone().set("isClient", false)
+    config.clone().set("isClient", false),
+    SignalingConstructor
   );
   const server = new Server(serverSignaling);
 
@@ -110,8 +126,11 @@ test("server accept single webrtc peer", (done) => {
 test("peers with multiplexing, single duplex", (done) => {
   const registry = new Registry();
   const config = new SignalingConfig().set("useMultiplex", true);
-
-  const [clientPeer, serverPeer] = CreateTestPairs(registry, config);
+  const [clientPeer, serverPeer] = CreateTestPairs(
+    registry,
+    config,
+    SignalingConstructor
+  );
 
   const payload = new Uint8Array([1, 2, 3]);
 
@@ -147,7 +166,8 @@ test("server accept multiple webrtc peers", (done) => {
       clientUid + i,
       serverUid,
       registry,
-      config.clone().set("isClient", true)
+      config.clone().set("isClient", true),
+      SignalingConstructor
     );
   }
 
@@ -155,7 +175,8 @@ test("server accept multiple webrtc peers", (done) => {
     serverUid,
     null,
     registry,
-    config.clone().set("isClient", false)
+    config.clone().set("isClient", false),
+    SignalingConstructor
   );
   const server = new Server(serverSignaling);
 
@@ -197,14 +218,16 @@ test("server accept single peers, using multiplex", (done) => {
     clientUid,
     serverUid,
     registry,
-    config.clone().set("isClient", true)
+    config.clone().set("isClient", true),
+    SignalingConstructor
   );
 
   const serverSignaling = createTestingSignaling(
     serverUid,
     null,
     registry,
-    config.clone().set("isClient", false)
+    config.clone().set("isClient", false),
+    SignalingConstructor
   );
   const server = new Server(serverSignaling);
 
@@ -231,3 +254,7 @@ test("server accept single peers, using multiplex", (done) => {
     console.log(registry);
   }, 1000);
 });
+// }
+
+// ClientTests()
+// export { ClientTests };
