@@ -22,22 +22,30 @@ test("intergration", (done) => {
   const tcpServer = spawnLocalTcpServer2((addr) => {
     const webrtcServer = spawnWebrtcServer();
 
-    const N = 1;
+    const N = 10;
     let n = 0;
     for (let i = 0; i < N; i++) {
-      const clientConn = DialWebrtcConn(addr);
       const payload = new Uint8Array([i, i + 1, i + 2]);
-      clientConn.write(payload);
 
-      clientConn.on("data", (data) => {
-        data = new Uint8Array(data);
-        expect(data).toEqual(payload);
-        n++;
-        if (n >= N) {
-          tcpServer.close();
-          done();
-        }
-      });
+      // re-create a new peer conn and duplex
+      function doit() {
+        let conn = DialWebrtcConn(addr);
+        conn.write(payload);
+
+        conn.on("data", (data) => {
+          data = new Uint8Array(data);
+          expect(data).toEqual(payload);
+          expect(data).not.toEqual([]);
+          n++;
+          if (n >= N) {
+            tcpServer.close();
+            done();
+          }
+        });
+
+        conn.once("error", doit);
+      }
+      doit();
     }
   });
 });

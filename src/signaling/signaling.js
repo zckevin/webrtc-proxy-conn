@@ -103,28 +103,7 @@ class BasicSignaling {
           }
           const localPeer = this.localPeers[sdpObject.peerId];
           if (localPeer) {
-            const rawSdp = sdpObject.rawText();
-            let doSignal = true;
-            // filter out offer/answer signal,
-            // webrtc would throw on repeated offer/answer
-            if (rawSdp.type === "offer" || rawSdp.type === "answer") {
-              if (localPeer._recvedOfferOrAnswer) {
-                console.log(
-                  "/////////////////////////////////////////////////////////////"
-                );
-                doSignal = false;
-              } else {
-                localPeer._recvedOfferOrAnswer = true;
-              }
-            }
-            if (doSignal) {
-              assert(localPeer._recvedOfferOrAnswer);
-              console.log(
-                `signal local peer ${sdpObject.peerId} with sdp!`,
-                sdpObject.rawText()
-              );
-              localPeer.signal(rawSdp);
-            }
+            localPeer.trySignal(sdpObject)
           } else {
             console.error(`local peer ${sdpObject.peerId} not found?`);
           }

@@ -83,7 +83,7 @@ class Server {
           duplex.on("data", onRecvHeaderToBeCanceled);
         });
       }
-      peer.signal(sdpObject.rawText());
+      peer.trySignal(sdpObject);
     });
   }
 }

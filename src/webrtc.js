@@ -50,9 +50,15 @@ class ProxyPeer extends SimplePeer {
     let n = 0;
     this._retryInterval = setInterval(() => {
       assert(this.SendSdp);
-      this._sdpObjects.map((sdpObject) => {
+
+      // last-in, first-out
+      for (let i = this._sdpObjects.length - 1; i >= 0; i--) {
+        const sdpObject = this._sdpObjects[i];
         this.SendSdp(sdpObject);
-      });
+      }
+      // this._sdpObjects.map((sdpObject) => {
+      //   this.SendSdp(sdpObject);
+      // });
 
       n++;
       if (n >= RETRY_N) {
@@ -66,6 +72,30 @@ class ProxyPeer extends SimplePeer {
 
   appendSdps(sdpObject) {
     this._sdpObjects.push(sdpObject);
+  }
+
+  trySignal(sdpObject) {
+    const rawSdp = sdpObject.rawText();
+    let doSignal = true;
+    // filter out offer/answer signal,
+    // webrtc would throw on repeated offer/answer
+    if (rawSdp.type === "offer" || rawSdp.type === "answer") {
+      if (this._recvedOfferOrAnswer) {
+        console.log(
+          "/////////////////////////////////////////////////////////////"
+        );
+        doSignal = false;
+      } else {
+        this._recvedOfferOrAnswer = true;
+      }
+    }
+    if (doSignal) {
+      console.log(
+        `signal local peer ${sdpObject.peerId} with sdp!`,
+        sdpObject.rawText()
+      );
+      this.signal(rawSdp);
+    }
   }
 
   onNewMultiplexedDuplex(duplex) {

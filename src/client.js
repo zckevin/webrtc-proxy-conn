@@ -25,8 +25,12 @@ function init() {
     .set("useMultiplex", true);
   g_signaling = new AblySignaling(g_uid, config);
 
-  const peerId = uuidv4();
-  g_clientPeer = g_signaling.CreatePeer(peerId, DEFAULT_SERVER_PEER_ID);
+  function createPeer() {
+    const peerId = uuidv4();
+    g_clientPeer = g_signaling.CreatePeer(peerId, DEFAULT_SERVER_PEER_ID);
+    g_clientPeer.on("error", createPeer);
+  }
+  createPeer();
 }
 
 // @addr host:port
