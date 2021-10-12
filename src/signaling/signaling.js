@@ -103,17 +103,15 @@ class BasicSignaling {
           }
           const localPeer = this.localPeers[sdpObject.peerId];
           if (localPeer) {
-            console.log(
-              `signal local peer ${sdpObject.peerId} with sdp!`,
-              sdpObject.rawText()
-            );
             const rawSdp = sdpObject.rawText();
             let doSignal = true;
             // filter out offer/answer signal,
             // webrtc would throw on repeated offer/answer
             if (rawSdp.type === "offer" || rawSdp.type === "answer") {
               if (localPeer._recvedOfferOrAnswer) {
-                console.log("/////////////////////////////////////////////////////////////")
+                console.log(
+                  "/////////////////////////////////////////////////////////////"
+                );
                 doSignal = false;
               } else {
                 localPeer._recvedOfferOrAnswer = true;
@@ -121,6 +119,10 @@ class BasicSignaling {
             }
             if (doSignal) {
               assert(localPeer._recvedOfferOrAnswer);
+              console.log(
+                `signal local peer ${sdpObject.peerId} with sdp!`,
+                sdpObject.rawText()
+              );
               localPeer.signal(rawSdp);
             }
           } else {
@@ -128,6 +130,9 @@ class BasicSignaling {
           }
         });
       };
+
+      // client side peer only, or testing peers
+      // server side peer has its own logic to accept new peers
       if (config.isClient || config.serverPeerForTesting) {
         this.onReceiveSdpsCallbacks.push(callback);
       }

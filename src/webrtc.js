@@ -74,6 +74,7 @@ class ProxyPeer extends SimplePeer {
     });
   }
 
+  // client side only
   DialWebrtcConn(addr) {
     let duplex = this;
     if (this.useMultiplex) {
@@ -96,11 +97,14 @@ class ProxyPeer extends SimplePeer {
     }
     const headerAb = str2ab(addr);
     // console.log("DialWebrtcConn wrote headerAb:", headerAb);
-    duplex.write(new Uint8Array(headerAb));
+    duplex.write(new Uint8Array(headerAb), () => {
+      // signal WebTorrent to know that duplex is ready
+      duplex.emit("connect");
+    });
     return duplex;
   }
 
-  // server side ProxyPeer only
+  // server side only
   onRecvHeader(duplex, data) {
     let ab;
     if (data instanceof Uint8Array) {
@@ -151,7 +155,7 @@ class ProxyPeer extends SimplePeer {
       console.error("pump err read", err);
     });
 
-    tcpConn.once("error", (err) => {
+    tcpConn.on("error", (err) => {
       console.error("tcp conn error: ", err);
       duplex.destroy();
     });
