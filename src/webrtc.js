@@ -56,18 +56,17 @@ class ProxyPeer extends SimplePeer {
         const sdpObject = this._sdpObjects[i];
         this.SendSdp(sdpObject);
       }
-      // this._sdpObjects.map((sdpObject) => {
-      //   this.SendSdp(sdpObject);
-      // });
 
       n++;
+      /*
       if (n >= RETRY_N) {
         clearInterval(this._retryInterval);
         if (!this._connected) {
           console.error(`peer connect failed after ${RETRY_N} retries...`);
         }
       }
-    }, 1000);
+      */
+    }, 2000);
   }
 
   appendSdps(sdpObject) {
