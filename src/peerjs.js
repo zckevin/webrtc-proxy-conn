@@ -6,6 +6,7 @@ import { BPMux } from "bpmux";
 import net from "net";
 import pump from "pump";
 import _ from "lodash";
+import debug from "debug";
 
 import { assert, assertNotReached } from "./assert.js";
 import { wrtc, fetch, WebSocket } from "./wrtc.node.js";
@@ -19,13 +20,6 @@ const ICE_SERVERS = [
   },
   { urls: "stun:global.stun.twilio.com:3478?transport=udp" },
 ];
-
-const defaultSimplePeerConfig = {
-  trickle: true,
-  config: {
-    iceServers: ICE_SERVERS,
-  },
-};
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
 export const DEFAULT_SERVER_UID = "sb_gfw_server_89_258";
@@ -103,7 +97,8 @@ export class PeerJsClient extends PeerJsBasic {
     dstUid = dstUid || DEFAULT_SERVER_UID;
     super(true, uid, dstUid, config);
 
-    this.conn = this.peerjs.connect(this.dstUid)
+    this.conn = this.peerjs.connect(this.dstUid);
+    this.debug = debug("webrtc-proxy-conn:PeerJsClient");
   }
 
   async DialWebrtcConn(addr) {
@@ -133,6 +128,7 @@ export class PeerJsClient extends PeerJsBasic {
     duplex.write(new Uint8Array(headerAb), () => {
       // signal WebTorrent to know that duplex is ready
       duplex.emit("connect");
+      this.debug("headAb(target addr) is wrote");
     });
     return duplex;
   }
@@ -141,6 +137,7 @@ export class PeerJsClient extends PeerJsBasic {
 export class PeerJsServer extends PeerJsBasic {
   constructor(uid, config) {
     super(false, uid, null, config);
+    this.debug = debug("webrtc-proxy-conn:PeerJsClient");
 
     this.onNewWebrtcConn((duplex) => {
       const onRecvHeaderToBeCanceled = (data) => {
@@ -158,13 +155,11 @@ export class PeerJsServer extends PeerJsBasic {
       // conn.peer is SimplePeer peer instance
 
       if (this.useMultiplex) {
-        if (!this.mux) {
-          this.mux = new BPMux(conn.peer);
-          this.mux.on("error", (err) => {
-            console.error("bpmux error:", err);
-          });
-        }
-        this.mux.on("handshake", (duplex) => {
+        const mux = new BPMux(conn.peer);
+        mux.on("error", (err) => {
+          console.error("bpmux error:", err);
+        });
+        mux.on("handshake", (duplex) => {
           this.onNewMultiplexedDuplex(duplex);
           cb(duplex);
         });
