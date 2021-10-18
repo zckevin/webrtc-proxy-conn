@@ -97,11 +97,14 @@ export class PeerJsClient extends PeerJsBasic {
     dstUid = dstUid || DEFAULT_SERVER_UID;
     super(true, uid, dstUid, config);
 
-    this.conn = this.peerjs.connect(this.dstUid);
     this.debug = debug("webrtc-proxy-conn:PeerJsClient");
   }
 
   async DialWebrtcConn(addr) {
+    // put it here to make error throwed by peerjs.connect could be captured by outer try...catch
+    if (!this.conn) {
+      this.conn = this.peerjs.connect(this.dstUid);
+    }
     let duplex = (await this.conn).peer;
 
     if (this.useMultiplex) {

@@ -3,23 +3,30 @@ import { assert } from "./assert.js";
 import { v4 as uuidv4 } from "uuid";
 import { PeerJsClient, DEFAULT_SERVER_UID } from "./peerjs.js";
 
-let inited = false;
-let g_clientPeer;
+let g_clientPeer = createPeerClient(uuidv4());
 
-function init() {
-  if (inited) {
-    return;
-  }
-  inited = true;
-
-  const peerId = uuidv4();
-  g_clientPeer = new PeerJsClient(peerId, DEFAULT_SERVER_UID);
+function createPeerClient(peerId) {
+  const client = new PeerJsClient(peerId, DEFAULT_SERVER_UID);
+  client.peerjs.on("error", (err) => {
+    console.error(err);
+    client.__met_error = true;
+  });
+  return client;
 }
 
-function DialWebrtcConn(addr) {
-  assert(addr.length > 0, "invalid addr for Dial()");
-  init();
-  return g_clientPeer.DialWebrtcConn(addr);
+async function DialWebrtcConn(addr, recreateClientPeer = false) {
+  if (recreateClientPeer || g_clientPeer.__met_error) {
+    g_clientPeer = null;
+    g_clientPeer = createPeerClient(uuidv4());
+  }
+  let conn;
+  try {
+    conn = await g_clientPeer.DialWebrtcConn(addr);
+  } catch (err) {
+    console.error(err);
+    g_clientPeer.__met_error = true;
+  }
+  return conn;
 }
 
 export { DialWebrtcConn };
