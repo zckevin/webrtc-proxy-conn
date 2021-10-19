@@ -11,6 +11,7 @@ import debug from "debug";
 import { assert, assertNotReached } from "./assert.js";
 import { wrtc, fetch, WebSocket } from "./wrtc.node.js";
 import { str2ab, ab2str } from "./protocol.js";
+import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const ICE_SERVERS = [
   {
@@ -47,8 +48,9 @@ const defaultConfig = {
     initiator: true,
   },
   websocket: {
-    host: "localhost",
-    port: 9000,
+    secure: true,
+    host: process.env.WEBSOCKET_HOST,
+    port: 443,
     id: null,
   },
 };
@@ -185,7 +187,6 @@ export class PeerJsServer extends PeerJsBasic {
       assertNotReached("peer on recv data unexpected type");
     }
 
-    // console.log("111", ab)
     let [addrStr, leftAb] = ab2str(ab);
     if (!addrStr) {
       // assertNotReached("peer on recv data header fragmentation");
