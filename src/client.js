@@ -7,8 +7,10 @@ let g_clientPeer = createPeerClient(uuidv4());
 
 function createPeerClient(peerId) {
   const client = new PeerJsClient(peerId, DEFAULT_SERVER_UID);
-  client.peerjs.on("error", (err) => {
+  client.peerjs.once("error", (err) => {
     console.error(err);
+    client.peerjs.close();
+    client.peerjs = null;
     client.__met_error = true;
   });
   return client;
