@@ -11,7 +11,7 @@ import debug from "debug";
 import { assert, assertNotReached } from "./assert.js";
 import { wrtc, fetch, WebSocket } from "./wrtc.node.js";
 import { str2ab, ab2str } from "./protocol.js";
-import "../dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
+import "./dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webpack
 
 const ICE_SERVERS = [
   {

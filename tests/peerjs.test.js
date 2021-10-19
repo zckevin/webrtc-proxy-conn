@@ -3,9 +3,18 @@ import { v4 as uuidv4 } from "uuid";
 import { PeerJsClient, PeerJsServer } from "../src/peerjs.js";
 import { spawnLocalTcpServer } from "./helper.js";
 
+const testingConfig = {
+  websocket: {
+    secure: false,
+    host: "localhost",
+    port: 9000,
+  },
+};
+
 test("simple peer pair", (done) => {
   const config = {
     useMultiplex: false,
+    ...testingConfig
   };
   const clientId = uuidv4();
   const serverId = uuidv4();
@@ -32,6 +41,7 @@ test("server accept multiple webrtc peers", (done) => {
 
   const config = {
     useMultiplex: false,
+    ...testingConfig
   };
   const serverId = uuidv4();
   const server = new PeerJsServer(serverId, config);
@@ -63,8 +73,8 @@ test("server accept multiple webrtc conns and single peer, using multiplex", (do
 
   const clientId = uuidv4();
   const serverId = uuidv4();
-  const client = new PeerJsClient(clientId, serverId);
-  const server = new PeerJsServer(serverId);
+  const client = new PeerJsClient(clientId, serverId, testingConfig);
+  const server = new PeerJsServer(serverId, testingConfig);
 
   const payload = new Uint8Array([1, 2, 3]);
   let finished = 0;

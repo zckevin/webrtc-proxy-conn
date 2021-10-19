@@ -8,7 +8,8 @@
     "dev": "webpack --config webpack.dev.cjs --watch",
     "start": "webpack --config webpack.dev.cjs --stats-children",
     "build": "webpack --config webpack.prod.cjs",
-    "test": "jest"
+    "test": "jest",
+    "prepublishOnly": "webpack --config webpack.dev.cjs"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.5",
