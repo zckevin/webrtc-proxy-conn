@@ -11,13 +11,6 @@ let browserConfig = {
         type: "commonjs",
       },
     },
-    web: {
-      import: "./tests/web.js",
-      library: {
-        name: "WebrtcConn",
-        type: "umd",
-      },
-    },
   },
   /*
   entry: ,
@@ -55,6 +48,9 @@ let browserConfig = {
       https: false,
       crypto: false,
       buffer: false,
+      util: false,
+      stream: false,
+      net: false,
     },
   },
 };
@@ -88,5 +84,6 @@ let nodeConfig = {
   },
 };
 
-// module.exports = [browserConfig];
+// TODO: make this works for both browser & node
+// module.exports = [browserConfig, nodeConfig];
 module.exports = [nodeConfig];
