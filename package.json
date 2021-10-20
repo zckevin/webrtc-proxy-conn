@@ -9,7 +9,8 @@
     "start": "webpack --config webpack.dev.cjs --stats-children",
     "build": "webpack --config webpack.prod.cjs",
     "test": "jest",
-    "prepublishOnly": "webpack --config webpack.dev.cjs"
+    "prepublishOnly": "webpack --config webpack.dev.cjs",
+    "postinstall": "webpack --config webpack.prod.cjs"
   },
   "devDependencies": {
     "@babel/cli": "^7.14.5",
