@@ -1,8 +1,8 @@
 "use strict";
 
-import SimplePeerJs from "simple-peerjs";
-import { isBrowser, isNode } from "browser-or-node";
 import { BPMux } from "bpmux";
+import SimplePeerJs from "@zckevin/simple-peerjs";
+import { isBrowser, isNode } from "browser-or-node";
 import net from "net";
 import pump from "pump";
 import _ from "lodash";
@@ -15,15 +15,17 @@ import "./dotenv.node.js"; // empty in browser, using webpack plugin dotenv-webp
 
 const ICE_SERVERS = [
   {
-    credential: "bshu1211",
     urls: "turn:stun.ppzhilian.com",
+    credential: "bshu1211",
     username: "bshu",
   },
-  { urls: "stun:global.stun.twilio.com:3478?transport=udp" },
+  {
+    urls: "stun:global.stun.twilio.com:3478?transport=udp"
+  },
 ];
 
 const ADDR_RE = /^\[?([^\]]+)\]?:(\d+)$/; // ipv4/ipv6/hostname + port
-export const DEFAULT_SERVER_UID = "sb_gfw_server_89_258";
+export const DEFAULT_SERVER_UID = "server_258";
 
 function dialNetConn(addrStr, cb) {
   let [host, port] = addrToIPPort(addrStr);
