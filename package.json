@@ -1,5 +1,5 @@
 {
-  "name": "webrtc-proxy-conn-ts",
+  "name": "webrtc-proxy-conn",
   "version": "1.0.0",
   "description": "",
   "main": "dist/node/main.js",
