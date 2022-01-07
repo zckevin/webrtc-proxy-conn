@@ -2,13 +2,12 @@ import * as net from "net"
 // @ts-ignore
 import pump from "pump"
 // @ts-ignore
-import SimplePeerJs from "@zckevin/simple-peerjs";
-// @ts-ignore
 import { BPMux } from "bpmux";
+// @ts-ignore
+import SimplePeerJs from "@zckevin/simple-peerjs";
 import {
   tap, retryWhen, map, mergeMap, timeout, defer, from, fromEvent, delay,
-  merge, of, take, Observable, catchError, shareReplay, takeUntil,
-  Subject, finalize,
+  merge, of, take, Observable, catchError, shareReplay, takeUntil, Subject, mergeWith
 } from 'rxjs';
 
 import { buildDefaultConfig } from "./config"
@@ -18,14 +17,6 @@ function onErrorHelper(target: any): Observable<any> {
     .pipe(
       map(err => { throw err })
     );
-}
-
-interface Signaling {
-  on(event: "signal", listener: (data: any) => void): this;
-  off(event: "signal", listener: (data: any) => void): this;
-
-  close(): void;
-  connect(peerId: string, opts?: any): Promise<any>;
 }
 
 class HandleshakeData {
@@ -71,7 +62,6 @@ class WebrtcProxyBase {
       of(mux),
       onErrorHelper(mux),
       onErrorHelper(conn.peer),
-      onErrorHelper(this.signaling),
       onMuxClose,
     );
   }
@@ -143,9 +133,14 @@ export class WebrtcProxyClient extends WebrtcProxyBase {
     const dial = () => {
       this.testingEv?.emit("dial");
       this.signaling = new this.signalingClass(this.config);
-      return this.signaling.connect(WebrtcProxyBase.PROXY_SERVER_ID);
+      return of(null);
     }
     return defer(() => from(dial())).pipe(
+      mergeMap(() => merge(
+          from(this.signaling.connect(WebrtcProxyBase.PROXY_SERVER_ID)),
+          onErrorHelper(this.signaling),
+        )
+      ),
       takeUntil(this.destoryed),
       timeout(this.getTimeoutMs()),
       mergeMap((conn: any) => this.muxConn(conn)),
@@ -165,7 +160,6 @@ export class WebrtcProxyClient extends WebrtcProxyBase {
           delay(this.getRetryDelay()),
         )
       ),
-      // finalize(this.onFatalError.bind(this)),
     );
   }
 
@@ -244,11 +238,16 @@ export class WebrtcProxyServer extends WebrtcProxyBase {
   public Serve() {
     const source = () => {
       this.signaling = new this.signalingClass(this.config);
-      return fromEvent(this.signaling, "connect");
+      return of(null);
     }
-    return defer(() => source()).pipe(
+    return defer(() => from(source())).pipe(
+      mergeMap(() => merge(
+          fromEvent(this.signaling, "connect"),
+          onErrorHelper(this.signaling),
+        )
+      ),
       takeUntil(this.destoryed),
-      // tap(conn => { console.log("Peer connected"); }),
+      tap(conn => { console.log("Peer connected"); }),
       mergeMap((conn: any) => this.muxConn(conn)),
       mergeMap(mux =>
         fromEvent(mux, "handshake", (duplex: any, handleshakeData: Buffer) => {
@@ -260,7 +259,6 @@ export class WebrtcProxyServer extends WebrtcProxyBase {
         console.warn("met error, retry: ", err)
         return caught;
       }),
-      // finalize(this.onFatalError.bind(this)),
     )
   }
 }
