@@ -10,7 +10,7 @@ const nodeConfig = {
       },
     },
     server: {
-      import: "./bin/server.ts",
+      import: "./src/server.ts",
       library: {
         type: "commonjs",
       },
@@ -21,7 +21,7 @@ const nodeConfig = {
     extensions: ['.tsx', '.ts', '.js'],
   },
   output: {
-    path: path.resolve(__dirname, "dist", "node"),
+    path: path.resolve(__dirname, "dist"),
     filename: "[name].js",
   },
   module: {
@@ -43,4 +43,4 @@ const nodeConfig = {
   },
 };
 
-module.exports = [nodeConfig];
+module.exports = nodeConfig;
