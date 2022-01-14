@@ -1,6 +1,6 @@
 {
-  "name": "webrtc-proxy-conn",
-  "version": "1.0.0",
+  "name": "@zckevin/webrtc-proxy-conn",
+  "version": "0.0.1",
   "description": "",
   "main": "dist/node/main.js",
   "files": [
