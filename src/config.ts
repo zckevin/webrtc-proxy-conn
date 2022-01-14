@@ -43,8 +43,14 @@ export function buildDefaultConfig(isClient: boolean, myId: string | null) {
   };
   const websocketConfig: WebsocketConfig = {
     id: myId,
-    host: process.env.PEERJS_SERVER_HOST,
-    port: parseInt(process.env.PEERJS_SERVER_PORT),
+    // @ts-ignore
+    host: globalThis.PEERJS_SERVER_HOST ||
+          process.env.PEERJS_SERVER_HOST ||
+          "localhost",
+    // @ts-ignore
+    port: globalThis.PEERJS_SERVER_PORT ||
+          parseInt(process.env.PEERJS_SERVER_PORT) ||
+          8080,
   }
   const config: WebrtcProxyConfig = {
     simplePeer: simplePeerConfig,
