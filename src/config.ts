@@ -18,6 +18,7 @@ interface SimplePeerConfig {
 interface WebsocketConfig {
   host: string,
   port: number,
+  secure: boolean,
   id?: string,
 }
 
@@ -46,12 +47,17 @@ export function buildDefaultConfig(isClient: boolean, myId: string | null) {
     // @ts-ignore
     host: globalThis.PEERJS_SERVER_HOST ||
           process.env.PEERJS_SERVER_HOST ||
-          "localhost",
+          "0.peerjs.com",
     // @ts-ignore
     port: globalThis.PEERJS_SERVER_PORT ||
           parseInt(process.env.PEERJS_SERVER_PORT) ||
-          8080,
+          443,
+    secure: false
   }
+  if (websocketConfig.host === "0.peerjs.com") {
+    websocketConfig.secure = true;
+  }
+
   const config: WebrtcProxyConfig = {
     simplePeer: simplePeerConfig,
     websocket: websocketConfig,

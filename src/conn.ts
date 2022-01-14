@@ -41,7 +41,11 @@ class HandleshakeData {
 }
 
 class WebrtcProxyBase {
-  protected static PROXY_SERVER_ID = "webrtc-proxy-server";
+  protected static PROXY_SERVER_ID =
+    // @ts-ignore
+    globalThis.PEERJS_SERVER_ID ||
+    process.env.PEERJS_SERVER_ID ||
+    "webrtc-proxy-server";
   protected mux: any;
   protected signaling: any;
   protected destoryed = new Subject();
