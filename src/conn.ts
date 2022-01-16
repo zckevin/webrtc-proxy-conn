@@ -114,7 +114,7 @@ export class WebrtcProxyClient extends WebrtcProxyBase {
   private peerSource: any = null;
 
   public constructor(signalingClass?: any) {
-    super(buildDefaultConfig(true, uuidv4()), signalingClass);
+    super(buildDefaultConfig(true, null), signalingClass);
   }
 
   private getTimeoutMs() {
@@ -138,6 +138,7 @@ export class WebrtcProxyClient extends WebrtcProxyBase {
   private connectToPeer() {
     const dial = () => {
       this.testingEv?.emit("dial");
+      this.config.id = uuidv4();
       this.signaling = new this.signalingClass(this.config);
       return of(null);
     }

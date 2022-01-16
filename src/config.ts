@@ -34,7 +34,7 @@ const DEFAULT_ICE_SERVERS: Array<IceServerConfig> = [
   { urls: 'stun:stun.l.google.com:19302' },
 ];
 
-export function buildDefaultConfig(isClient: boolean, myId: string) {
+export function buildDefaultConfig(isClient: boolean, myId: string | null) {
   const simplePeerConfig: SimplePeerConfig = {
     trickle: true,
     config: {
