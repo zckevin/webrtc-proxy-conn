@@ -5,6 +5,8 @@ import pump from "pump"
 import { BPMux } from "bpmux";
 // @ts-ignore
 import SimplePeerJs from "@zckevin/simple-peerjs";
+// @ts-ignore
+import { v4 as uuidv4 } from 'uuid';
 import {
   tap, retryWhen, map, mergeMap, timeout, defer, from, fromEvent, delay,
   merge, of, take, Observable, catchError, shareReplay, takeUntil, Subject, mergeWith
@@ -112,7 +114,7 @@ export class WebrtcProxyClient extends WebrtcProxyBase {
   private peerSource: any = null;
 
   public constructor(signalingClass?: any) {
-    super(buildDefaultConfig(true, null), signalingClass);
+    super(buildDefaultConfig(true, uuidv4()), signalingClass);
   }
 
   private getTimeoutMs() {

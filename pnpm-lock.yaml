@@ -42,6 +42,7 @@ specifiers:
   typescript: ^4.5.4
   url: ^0.11.0
   util: ^0.12.4
+  uuid: ^8.3.2
   vm-browserify: ^1.1.2
   webpack: ^5.65.0
   webpack-cli: ^4.9.1
@@ -61,6 +62,7 @@ dependencies:
   rxjs: 7.5.1
   ts-loader: 9.2.6_typescript@4.5.4+webpack@5.65.0
   typescript: 4.5.4
+  uuid: 8.3.2
   webpack: 5.65.0_webpack-cli@4.9.1
   webpack-cli: 4.9.1_webpack@5.65.0
   wrtc: 0.4.7
@@ -4287,6 +4289,11 @@ packages:
       safe-buffer: 5.2.1
       which-typed-array: 1.1.7
     dev: true
+
+  /uuid/8.3.2:
+    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    hasBin: true
+    dev: false
 
   /v8-to-istanbul/8.1.0:
     resolution: {integrity: sha512-/PRhfd8aTNp9Ggr62HPzXg2XasNFGy5PBt0Rp04du7/8GNNSgxFL6WBTkgMKSL9bFjH+8kKEG3f37FmxiTqUUA==}
