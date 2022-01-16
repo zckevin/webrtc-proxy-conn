@@ -1,6 +1,13 @@
 import net from "net";
 import { spawn } from 'child_process';
 
+export function useLocalPeerjsServer() {
+  // @ts-ignore
+  globalThis.PEERJS_SERVER_HOST = "localhost";
+  // @ts-ignore
+  globalThis.PEERJS_SERVER_PORT = 8080;
+}
+
 export function spawnLocalTcpServer(payload: any, cb: (port : number) => void) {
   const tcpServer = net.createServer((sock) => {
     if (typeof payload === "function") {

@@ -202,14 +202,30 @@ export class WebrtcProxyClient extends WebrtcProxyBase {
 }
 
 export class WebrtcProxyServer extends WebrtcProxyBase {
+  private isAllowedHostPort: (host: string, port: number) => boolean;
+
   public constructor(signalingClass?: any) {
     super(buildDefaultConfig(false, WebrtcProxyBase.PROXY_SERVER_ID), signalingClass);
   }
 
-  private createProxy(duplex: any, host: string, port: number) {
+  public SetIsAllowedHostPortFn(fn: (host: string, port: number) => boolean) {
+    this.isAllowedHostPort = fn;
+  }
+
+  private buildProxy(duplex: any, host: string, port: number) {
     console.log(`Dial to ${host}:${port}`);
     let destroyed = false;
-    const tcpConn = net.connect(port, host)
+    let tcpConn: net.Socket;
+    try {
+      if (this.isAllowedHostPort && !this.isAllowedHostPort(host, port)) {
+        throw new Error(`target ${host}:${port} not allowed`);
+      }
+      tcpConn = net.connect(port, host)
+    } catch(err) {
+      console.error(err);
+      duplex.destroy();
+      return;
+    }
     const onError = (err: Error | undefined) => {
       if (err && !destroyed) {
         console.log("pump error:", err);
@@ -227,11 +243,11 @@ export class WebrtcProxyServer extends WebrtcProxyBase {
     try {
       const [host, port] = HandleshakeData.tryParse(buf);
       if (this.testingEv) {
-        this.testingEv.emit("createProxy");
+        this.testingEv.emit("buildProxy");
         // catch the errors on bpmux's destroy
         duplex.on("error", () => {})
       } else {
-        this.createProxy(duplex, host, port)
+        this.buildProxy(duplex, host, port)
       }
     } catch (err) {
       console.warn(err);

@@ -2,8 +2,10 @@
 // import * as wtfnode from "wtfnode"
 
 import { WebrtcProxyClient, WebrtcProxyServer } from "../src/conn";
-import { spawnLocalTcpServer, spawnPeerjsServer } from "./helper"
+import { spawnLocalTcpServer, spawnPeerjsServer, useLocalPeerjsServer } from "./helper"
 import { take } from 'rxjs';
+
+useLocalPeerjsServer();
 
 test("single client", (done) => {
   const payloads = [

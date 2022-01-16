@@ -45,3 +45,14 @@ client.DialTcp("localhost", 8080).then(duplex => {
     // ...
 });
 ```
+
+# Testing
+
+```bash
+# start local peerjs websocket server
+# because it's hard to spawn & kill peerjs server in tests,
+# use we spawn it mannually
+peerjs --port 8080 --host localhost
+
+npm run test
+```

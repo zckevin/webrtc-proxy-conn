@@ -1,10 +1,13 @@
 import { WebrtcProxyClient,  WebrtcProxyServer } from "../src/conn";
 import EventEmitter from "eventemitter3"
 import { take, fromEvent, scan, merge, map, reduce } from 'rxjs';
+import { useLocalPeerjsServer } from "./helper";
+
+useLocalPeerjsServer();
 
 function dial(client: any) {
-  const nonExistPort = 123456789;
-  client.DialTcp("localhost", nonExistPort).then((duplex: any) => {
+  const unusedPort = 65534;
+  client.DialTcp("localhost", unusedPort).then((duplex: any) => {
     // @ts-ignore
     duplex.on("error", () => {})
   });
