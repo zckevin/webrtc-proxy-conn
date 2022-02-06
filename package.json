@@ -1,9 +1,9 @@
 {
   "name": "@zckevin/webrtc-proxy-conn",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "",
   "files": [
-    "packages/**/dist/*"
+    "packages/**/*"
   ],
   "scripts": {
     "test": "jest --forceExit --runInBand",
