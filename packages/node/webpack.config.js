@@ -23,6 +23,7 @@ const nodeConfig = {
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "[name].js",
+    clean: true,
   },
   module: {
     rules: [
@@ -40,6 +41,9 @@ const nodeConfig = {
         use: "node-loader",
       },
     ],
+  },
+  externals: {
+    "wrtc": "commonjs wrtc",
   },
 };
 
