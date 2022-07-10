@@ -1,0 +1,13 @@
+FROM node:lts-buster as builder
+ADD . /app
+WORKDIR '/app'
+RUN npm install -g pnpm --registry=http://registry.npm.taobao.org 
+RUN pnpm install
+RUN npm run build
+RUN npm run build-node-server
+
+FROM node:lts-buster 
+COPY --from=builder /app/dist /app
+RUN adduser --no-create-home -D app
+USER app
+CMD ["node", "/app/index.js"]
