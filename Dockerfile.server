@@ -8,6 +8,6 @@ RUN npm run build-node-server
 
 FROM node:lts-buster 
 COPY --from=builder /app/dist /app
-RUN adduser --no-create-home -D app
+RUN adduser --system --no-create-home --group app
 USER app
 CMD ["node", "/app/index.js"]
